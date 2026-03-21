@@ -168,6 +168,7 @@ local resetBtn = MakeFooterBtn("Reset", D.danger[1], D.danger[2], D.danger[3])
 resetBtn:SetPoint("BOTTOMLEFT", 8, 6)
 resetBtn:SetScript("OnClick", function()
     RaidDeathData = {}
+    RDTClassCache = {}
     frame:UpdateDisplay()
     print("|cff00ff00[RDT]|r Tode zurueckgesetzt.")
 end)
@@ -251,11 +252,18 @@ function RaidDeathTrackerFrame:UpdateDisplay()
 
     local lines = {}
     for i = 1, math.min(TOP_N, #sorted) do
-        local e   = sorted[i]
-        local col = RANK_COLORS[i] or "|cff999999"
+        local e      = sorted[i]
+        local rank   = RANK_COLORS[i] or "|cff999999"
+        local nameColor = "|cffd1d6e1"
+        local classId = RDTClassCache and RDTClassCache[e.name]
+        if classId and RAID_CLASS_COLORS and RAID_CLASS_COLORS[classId] then
+            local c = RAID_CLASS_COLORS[classId]
+            nameColor = string.format("|cff%02x%02x%02x",
+                math.floor(c.r * 255), math.floor(c.g * 255), math.floor(c.b * 255))
+        end
         table.insert(lines, string.format(
-            "%s#%d|r  |cffd1d6e1%s|r   |cff666672%dx|r",
-            col, i, e.name, e.count
+            "%s#%d|r  %s%s|r   |cff666672%dx|r",
+            rank, i, nameColor, e.name, e.count
         ))
     end
 
@@ -314,6 +322,7 @@ local function OnGroupRosterUpdate()
     local inGroup = IsInRaid() or IsInGroup()
     if inGroup and not wasInGroup then
         RaidDeathData = {}
+        RDTClassCache = {}
         frame:UpdateDisplay()
         display:Show()
         print("|cff00ff00[RDT]|r Gruppe beigetreten – Daten zurueckgesetzt.")
@@ -371,6 +380,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
         if name == ADDON_NAME then
             if not RaidDeathData then RaidDeathData = {} end
             if not RDTConfig then RDTConfig = {} end
+            if not RDTClassCache then RDTClassCache = {} end
             -- Migration: altes minimapAngle-Feld -> minimapPos (LibDBIcon-Format)
             if not RDTConfig.minimapPos then
                 RDTConfig.minimapPos = RDTConfig.minimapAngle or 220
@@ -404,6 +414,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
             local token = FindUnitToken(destName)
             if token then
                 local _, classId = UnitClass(token)
+                if classId then RDTClassCache[destName] = classId end
                 if classId == "HUNTER" then
                     -- Feign Death moeglich: erst nach 3s bestaetigen
                     pendingDeaths[destName] = { time = GetTime(), token = token }
@@ -454,6 +465,7 @@ SlashCmdList["RAIDDEATHTRACKER"] = function(msg)
         if display:IsShown() then display:Hide() else display:Show() end
     elseif msg == "reset"      then
         RaidDeathData = {}
+        RDTClassCache = {}
         frame:UpdateDisplay()
         print("|cff00ff00[RDT]|r Tode zurueckgesetzt.")
     elseif msg == "post"       then PostDeathsToChat()
