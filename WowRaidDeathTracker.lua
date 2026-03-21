@@ -343,11 +343,15 @@ local deathCheckFrame = CreateFrame("Frame")
 
 local function FindUnitToken(name)
     if UnitName("player") == name then return "player" end
-    for i = 1, GetNumRaidMembers() do
-        if UnitName("raid"..i) == name then return "raid"..i end
+    for i = 1, 40 do
+        local token = "raid"..i
+        if not UnitExists(token) then break end
+        if UnitName(token) == name then return token end
     end
-    for i = 1, GetNumPartyMembers() do
-        if UnitName("party"..i) == name then return "party"..i end
+    for i = 1, 4 do
+        local token = "party"..i
+        if not UnitExists(token) then break end
+        if UnitName(token) == name then return token end
     end
 end
 
@@ -405,31 +409,16 @@ frame:SetScript("OnEvent", function(self, event, ...)
             and (IsInRaid() or IsInGroup())
         then
             -- Nur eigene Gruppen-/Raid-Mitglieder zaehlen
-            local inGroup = false
-            if UnitName("player") == destName then
-                inGroup = true
-            else
-                for i = 1, GetNumRaidMembers() do
-                    if UnitName("raid"..i) == destName then inGroup = true; break end
-                end
-                if not inGroup then
-                    for i = 1, GetNumPartyMembers() do
-                        if UnitName("party"..i) == destName then inGroup = true; break end
-                    end
-                end
-            end
-            if inGroup then
-                local token = FindUnitToken(destName)
-                if token then
-                    local _, classId = UnitClass(token)
-                    if classId == "HUNTER" then
-                        -- Feign Death moeglich: erst nach 3s bestaetigen
-                        pendingDeaths[destName] = { time = GetTime(), token = token }
-                        deathCheckFrame:SetScript("OnUpdate", OnDeathCheck)
-                    else
-                        RaidDeathData[destName] = (RaidDeathData[destName] or 0) + 1
-                        frame:UpdateDisplay()
-                    end
+            local token = FindUnitToken(destName)
+            if token then
+                local _, classId = UnitClass(token)
+                if classId == "HUNTER" then
+                    -- Feign Death moeglich: erst nach 3s bestaetigen
+                    pendingDeaths[destName] = { time = GetTime(), token = token }
+                    deathCheckFrame:SetScript("OnUpdate", OnDeathCheck)
+                else
+                    RaidDeathData[destName] = (RaidDeathData[destName] or 0) + 1
+                    frame:UpdateDisplay()
                 end
             end
         end
