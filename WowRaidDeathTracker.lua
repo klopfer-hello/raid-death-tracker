@@ -170,6 +170,33 @@ resetBtn:SetScript("OnClick", function()
     print("|cff00ff00[RDT]|r Tode zurueckgesetzt.")
 end)
 
+-- Post-Button (Footer rechts)
+local postBtn = CreateFrame("Button", nil, display)
+postBtn:SetSize(54, 14)
+postBtn:SetPoint("BOTTOMRIGHT", -18, 5)
+
+local postBtnBg = postBtn:CreateTexture(nil, "BACKGROUND")
+postBtnBg:SetAllPoints()
+postBtnBg:SetColorTexture(0.06, 0.14, 0.24, 1)
+
+AddPixelBorder(postBtn, 0.12, 0.28, 0.48, 0.9)
+
+local postBtnText = postBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+postBtnText:SetAllPoints()
+postBtnText:SetText("|cff3399ccPost|r")
+
+postBtn:SetScript("OnEnter", function()
+    postBtnBg:SetColorTexture(0.08, 0.20, 0.36, 1)
+    postBtnText:SetText("|cff55bbffPost|r")
+end)
+postBtn:SetScript("OnLeave", function()
+    postBtnBg:SetColorTexture(0.06, 0.14, 0.24, 1)
+    postBtnText:SetText("|cff3399ccPost|r")
+end)
+postBtn:SetScript("OnClick", function()
+    PostDeathsToChat()
+end)
+
 -- Resize-Griff (unten rechts)
 local resizeGrip = CreateFrame("Button", nil, display)
 resizeGrip:SetSize(14, 14)
@@ -259,6 +286,56 @@ function RaidDeathTrackerFrame:UpdateDisplay()
 end
 
 -- ----------------------------------------------------------------
+-- Post Top 5 in Raid/Party
+-- ----------------------------------------------------------------
+local RANK_COLORS_CHAT = { "ff|cffffcc00", "ff|cffbbbbbb", "ff|cffcd7f32", "ff|cff999999", "ff|cff999999" }
+
+function PostDeathsToChat()
+    if not RaidDeathData or next(RaidDeathData) == nil then
+        print("|cff00ff00[RDT]|r Keine Daten zum Posten.")
+        return
+    end
+
+    local sorted = {}
+    for name, count in pairs(RaidDeathData) do
+        table.insert(sorted, { name = name, count = count })
+    end
+    table.sort(sorted, function(a, b) return a.count > b.count end)
+
+    local channel
+    if testBadge:IsShown() then
+        channel = "SAY"
+    elseif IsInRaid() then
+        channel = "RAID"
+    elseif IsInGroup() then
+        channel = "PARTY"
+    end
+
+    local function send(msg)
+        if channel then
+            SendChatMessage(msg, channel)
+        else
+            print(msg)
+        end
+    end
+
+    local RANK_COLORS_C = {
+        "|cffffcc00", "|cffbbbbbb", "|cffcd7f32", "|cff999999", "|cff999999",
+    }
+
+    send("|cff555566 ( |r|cffcc2222--<|r |cffffcc00Raid Death Tracker|r |cffcc2222>--|r")
+    for i = 1, math.min(5, #sorted) do
+        local e   = sorted[i]
+        local col = RANK_COLORS_C[i] or "|cff999999"
+        send(string.format("%s#%d|r  %s  |cff777788-- %dx|r", col, i, e.name, e.count))
+    end
+    send("|cff333355------------------------------|r")
+
+    local dest = channel or "lokalen Chat"
+    print("|cff00ff00[RDT]|r Top 5 gepostet in " .. dest .. ".")
+end
+
+-- ----------------------------------------------------------------
 -- Event Handler
 -- ----------------------------------------------------------------
 frame:SetScript("OnEvent", function(self, event, ...)
@@ -336,6 +413,7 @@ SlashCmdList["RAIDDEATHTRACKER"] = function(msg)
     elseif msg == "hide"       then display:Hide()
     elseif msg == "toggle"     then
         if display:IsShown() then display:Hide() else display:Show() end
+    elseif msg == "post"       then PostDeathsToChat()
     elseif msg == "test"       then ActivateTestMode()
     elseif msg == "test clear" then DeactivateTestMode()
     elseif msg == "debug"      then
@@ -353,6 +431,7 @@ SlashCmdList["RAIDDEATHTRACKER"] = function(msg)
         print("  /rdt hide        - Fenster verstecken")
         print("  /rdt toggle      - Fenster umschalten")
         print("  /rdt reset       - Alle Tode zuruecksetzen")
+        print("  /rdt post        - Top 5 in Raid/Party posten")
         print("  /rdt test        - Testmodus (Dummy-Daten)")
         print("  /rdt test clear  - Testmodus beenden")
         print("  /rdt debug       - Debug-Informationen anzeigen")
