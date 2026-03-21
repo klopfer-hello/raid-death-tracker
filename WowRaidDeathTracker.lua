@@ -278,8 +278,12 @@ function RaidDeathTrackerFrame:UpdateDisplay()
         footer = string.format("\n|cff444455Gesamt: %d Tode|r", total)
     end
 
-    local finalText = table.concat(lines, "\n") .. footer
-    contentText:SetText(finalText)
+    local mvc = ""
+    if #sorted >= 2 then
+        mvc = string.format("\n|cff666672Most Valuable Corpse:|r |cffcc2222%s|r", sorted[1].name)
+    end
+
+    contentText:SetText(table.concat(lines, "\n") .. footer .. mvc)
 end
 
 -- ----------------------------------------------------------------
