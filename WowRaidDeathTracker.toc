@@ -1,0 +1,8 @@
+## Interface: 20504
+## Title: Raid Death Tracker
+## Notes: Zählt Spielertode im Raid mit Strichliste
+## Author: 
+## Version: 1.0.0
+## SavedVariables: RaidDeathData
+
+WowRaidDeathTracker.lua
