@@ -1,11 +1,14 @@
 -- ============================================================
---  WowRaidDeathTracker  v2.2
+--  WowRaidDeathTracker  v2.3
 --  TBC Classic Anniversary (2.5.5)
 --  Zählt Spielertode – solo, in Party und Raid.
 -- ============================================================
 
 local ADDON_NAME = "WowRaidDeathTracker"
 local TOP_N      = 5
+
+-- Diagnose: Diese Zeile erscheint im Chat wenn die Datei geladen wird
+print("|cffff9900[RDT]|r Datei wird geladen...")
 
 -- ----------------------------------------------------------------
 -- Core Frame (Events)
@@ -304,7 +307,9 @@ function RaidDeathTrackerFrame:UpdateDisplay()
         footer = string.format("\n|cff444455Gesamt: %d Tode|r", total)
     end
 
-    contentText:SetText(table.concat(lines, "\n") .. footer)
+    local finalText = table.concat(lines, "\n") .. footer
+    print("|cff00ff00[RDT]|r Display: " .. #sorted .. " gesamt, " .. #lines .. " angezeigt")
+    contentText:SetText(finalText)
 end
 
 -- ----------------------------------------------------------------
@@ -319,7 +324,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
             if not RDTConfig.minimapAngle then RDTConfig.minimapAngle = 220 end
             UpdateMinimapButtonPos()
             self:UpdateDisplay()
-            print("|cff00ff00[RDT]|r Geladen. /rdt fuer Hilfe")
+            print("|cff00ff00[RDT]|r v2.3 Geladen. /rdt fuer Hilfe")
         end
 
     elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
@@ -350,10 +355,12 @@ local function ActivateTestMode()
     for _, name in ipairs(TEST_NAMES) do
         RaidDeathData[name] = math.random(1, 15)
     end
-    frame:UpdateDisplay()
+    local count = 0
+    for _ in pairs(RaidDeathData) do count = count + 1 end
+    print("|cff00ff00[RDT]|r Test: " .. count .. " Eintraege erstellt.")
     display:Show()
+    frame:UpdateDisplay()
     testBadge:Show()
-    print("|cff00ff00[RDT]|r |cffff9900Testmodus:|r Dummy-Daten geladen.")
 end
 
 local function DeactivateTestMode()
@@ -397,5 +404,6 @@ SlashCmdList["RAIDDEATHTRACKER"] = function(msg)
         print("  /rdt reset       - Alle Tode zuruecksetzen")
         print("  /rdt test        - Testmodus (Dummy-Daten)")
         print("  /rdt test clear  - Testmodus beenden")
+        print("  /rdt debug       - Debug-Informationen anzeigen")
     end
 end
