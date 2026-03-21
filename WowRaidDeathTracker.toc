@@ -1,8 +1,10 @@
 ## Interface: 20505
 ## Title: Raid Death Tracker
 ## Notes: Zählt Spielertode im Raid mit Strichliste
-## Author: 
+## Author:
 ## Version: 1.1.0
+## IconTexture: Interface\Icons\Spell_Shadow_DeathCoil
+## Category: Hall of Shame
 ## SavedVariables: RaidDeathData RDTConfig
 
 libs\LibDBIcon-1-0.lua
