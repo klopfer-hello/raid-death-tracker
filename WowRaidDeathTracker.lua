@@ -320,6 +320,23 @@ local function UpdateGroupVisibility()
     wasInGroup = inGroup
 end
 
+local MAX_SESSIONS = 5
+
+local function SaveSession()
+    if not RaidDeathData or not next(RaidDeathData) then return end
+    local zone = GetRealZoneText() or "Unbekannt"
+    local date = date("%d.%m")
+    local name = zone .. " " .. date
+    local data, classes = {}, {}
+    for k, v in pairs(RaidDeathData)  do data[k]    = v end
+    for k, v in pairs(RDTClassCache)  do classes[k] = v end
+    table.insert(RDTSessions, 1, { name = name, data = data, classes = classes })
+    if #RDTSessions > MAX_SESSIONS then
+        table.remove(RDTSessions, #RDTSessions)
+    end
+    print("|cff00ff00[RDT]|r Session gespeichert: " .. name)
+end
+
 -- Reset + Anzeigen nur bei echtem Gruppen-Beitritt
 local function OnGroupRosterUpdate()
     if testBadge:IsShown() then return end
@@ -330,6 +347,9 @@ local function OnGroupRosterUpdate()
         frame:UpdateDisplay()
         display:Show()
         print("|cff00ff00[RDT]|r Gruppe beigetreten – Daten zurueckgesetzt.")
+    elseif not inGroup and wasInGroup then
+        SaveSession()
+        display:Hide()
     elseif not inGroup then
         display:Hide()
     end
@@ -385,6 +405,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
             if not RaidDeathData then RaidDeathData = {} end
             if not RDTConfig then RDTConfig = {} end
             if not RDTClassCache then RDTClassCache = {} end
+            if not RDTSessions then RDTSessions = {} end
             -- Migration: altes minimapAngle-Feld -> minimapPos (LibDBIcon-Format)
             if not RDTConfig.minimapPos then
                 RDTConfig.minimapPos = RDTConfig.minimapAngle or 220
@@ -473,6 +494,33 @@ SlashCmdList["RAIDDEATHTRACKER"] = function(msg)
         frame:UpdateDisplay()
         print("|cff00ff00[RDT]|r Tode zurueckgesetzt.")
     elseif msg == "post"       then PostDeathsToChat()
+    elseif msg == "sessions"   then
+        if not RDTSessions or #RDTSessions == 0 then
+            print("|cff00ff00[RDT]|r Keine gespeicherten Sessions.")
+        else
+            print("|cff00ff00[RDT]|r Gespeicherte Sessions:")
+            for i, s in ipairs(RDTSessions) do
+                local count = 0
+                for _ in pairs(s.data) do count = count + 1 end
+                print(string.format("  %d. %s (%d Spieler)", i, s.name, count))
+            end
+        end
+    elseif msg:match("^session %d+$") then
+        local n = tonumber(msg:match("%d+"))
+        local s = RDTSessions and RDTSessions[n]
+        if not s then
+            print("|cff00ff00[RDT]|r Session " .. n .. " nicht gefunden.")
+        else
+            -- Session temporaer anzeigen (read-only)
+            local saved_data, saved_classes = RaidDeathData, RDTClassCache
+            RaidDeathData = s.data
+            RDTClassCache = s.classes or {}
+            frame:UpdateDisplay()
+            RaidDeathData, RDTClassCache = saved_data, saved_classes
+            testBadge:SetText("|cffff9900[" .. s.name .. "]|r")
+            testBadge:Show()
+            display:Show()
+        end
     elseif msg == "test"       then ActivateTestMode()
     elseif msg == "test clear" then DeactivateTestMode()
     elseif msg == "debug"      then
@@ -488,9 +536,11 @@ SlashCmdList["RAIDDEATHTRACKER"] = function(msg)
         print("|cff00ff00[RDT]|r Befehle:")
         print("  /rdt            - Fenster ein/ausblenden")
         print("  /rdt reset      - Alle Tode zuruecksetzen")
-        print("  /rdt post       - Top 5 in Raid/Party posten")
-        print("  /rdt test       - Testmodus (Dummy-Daten)")
-        print("  /rdt test clear - Testmodus beenden")
-        print("  /rdt debug      - Debug-Informationen anzeigen")
+        print("  /rdt post          - Top 5 im Emote-Channel posten")
+        print("  /rdt sessions      - Gespeicherte Sessions anzeigen")
+        print("  /rdt session <n>   - Session n im Panel anzeigen")
+        print("  /rdt test          - Testmodus (Dummy-Daten)")
+        print("  /rdt test clear    - Testmodus beenden")
+        print("  /rdt debug         - Debug-Informationen anzeigen")
     end
 end

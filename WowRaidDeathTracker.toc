@@ -5,7 +5,7 @@
 ## Version: 1.1.0
 ## IconTexture: Interface\Icons\Spell_Shadow_DeathCoil
 ## Category: Hall of Shame
-## SavedVariables: RaidDeathData RDTConfig RDTClassCache
+## SavedVariables: RaidDeathData RDTConfig RDTClassCache RDTSessions
 
 libs\LibDBIcon-1-0.lua
 WowRaidDeathTracker.lua
