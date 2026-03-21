@@ -13,6 +13,8 @@ local TOP_N      = 5
 local frame = CreateFrame("Frame", "RaidDeathTrackerFrame", UIParent)
 frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 frame:RegisterEvent("ADDON_LOADED")
+frame:RegisterEvent("PARTY_MEMBERS_CHANGED")
+frame:RegisterEvent("RAID_ROSTER_UPDATE")
 
 -- ----------------------------------------------------------------
 -- Hilfsfunktion: 1px-Pixelrahmen aus 4 Texturen.
@@ -56,6 +58,7 @@ display:RegisterForDrag("LeftButton")
 display:SetScript("OnDragStart", display.StartMoving)
 display:SetScript("OnDragStop",  display.StopMovingOrSizing)
 display:SetClampedToScreen(true)
+display:Hide()  -- standard: nur in Gruppe/Raid sichtbar
 
 -- Resize: neue API (SetResizeBounds) oder alte (SetResizable + SetMinResize)
 if display.SetResizeBounds then
@@ -329,6 +332,19 @@ function PostDeathsToChat()
 end
 
 -- ----------------------------------------------------------------
+-- Gruppen-Sichtbarkeit
+-- ----------------------------------------------------------------
+local function UpdateGroupVisibility()
+    -- Testmodus: Fenster bleibt wie es ist (manuell gesteuert)
+    if testBadge:IsShown() then return end
+    if IsInRaid() or IsInGroup() then
+        display:Show()
+    else
+        display:Hide()
+    end
+end
+
+-- ----------------------------------------------------------------
 -- Event Handler
 -- ----------------------------------------------------------------
 frame:SetScript("OnEvent", function(self, event, ...)
@@ -345,8 +361,12 @@ frame:SetScript("OnEvent", function(self, event, ...)
             LibStub("LibDBIcon-1.0"):Register("WowRaidDeathTracker", ldbObj, RDTConfig)
             minimapBtn = LibStub("LibDBIcon-1.0"):GetMinimapButton("WowRaidDeathTracker")
             self:UpdateDisplay()
+            UpdateGroupVisibility()
             print("|cff00ff00[RDT]|r v2.3 Geladen. /rdt fuer Hilfe")
         end
+
+    elseif event == "PARTY_MEMBERS_CHANGED" or event == "RAID_ROSTER_UPDATE" then
+        UpdateGroupVisibility()
 
     elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
         local _, subEvent, _, _, _, _, _, destGUID, destName =
