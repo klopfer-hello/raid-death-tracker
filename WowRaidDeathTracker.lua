@@ -317,6 +317,18 @@ local RANK_COLORS = {
     "|cff666672",  -- #5  (D.label)
 }
 
+local CLASS_COLORS = {
+    WARRIOR  = "|cffC79C6E",
+    PALADIN  = "|cffF58CBA",
+    HUNTER   = "|cffABD473",
+    ROGUE    = "|cffFFF569",
+    PRIEST   = "|cffFFFFFF",
+    SHAMAN   = "|cff0070DE",
+    MAGE     = "|cff69CCF0",
+    WARLOCK  = "|cff9482C9",
+    DRUID    = "|cffFF7D0A",
+}
+
 function RaidDeathTrackerFrame:UpdateDisplay()
     local viewData, viewClasses = GetViewData()
     if not viewData or not next(viewData) then
@@ -330,13 +342,8 @@ function RaidDeathTrackerFrame:UpdateDisplay()
     for i = 1, math.min(TOP_N, #sorted) do
         local e      = sorted[i]
         local rank   = RANK_COLORS[i] or "|cff999999"
-        local nameColor = "|cffd1d6e1"
-        local classId = viewClasses and viewClasses[e.name]
-        if classId and RAID_CLASS_COLORS and RAID_CLASS_COLORS[classId] then
-            local c = RAID_CLASS_COLORS[classId]
-            nameColor = string.format("|cff%02x%02x%02x",
-                math.floor(c.r * 255), math.floor(c.g * 255), math.floor(c.b * 255))
-        end
+        local classId   = viewClasses and viewClasses[e.name]
+        local nameColor = CLASS_COLORS[classId] or "|cffd1d6e1"
         table.insert(lines, string.format(
             "%s#%d|r  %s%s|r   |cff666672%dx|r",
             rank, i, nameColor, e.name, e.count
