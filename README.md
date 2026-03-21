@@ -1,28 +1,29 @@
 # WowRaidDeathTracker
 
-TBC Classic Anniversary Addon – zählt Spielertode im Raid/Party und zeigt eine Strichliste pro Spieler.
+TBC Classic Anniversary Addon (2.5.5) – verfolgt Spielertode solo, in Party und Raid und zeigt ein Ranking der meisten Tode.
 
 ## Dateien
 
 | Datei | Inhalt |
 |---|---|
 | `WowRaidDeathTracker.toc` | Addon-Manifest (Interface-Version, SavedVariables) |
-| `WowRaidDeathTracker.lua` | Gesamte Logik: Events, UI, Slash-Commands |
+| `WowRaidDeathTracker.lua` | Gesamte Logik: Events, UI, Minimap-Button, Slash-Commands |
 
 ## Installation
 
-Ordner nach `World of Warcraft/_classic_/Interface/AddOns/WowRaidDeathTracker/` kopieren.
+Ordner nach `World of Warcraft/_anniversary_/Interface/AddOns/WowRaidDeathTracker/` kopieren und Spiel neu starten.
 
 ## Features
 
 - Erkennt Spielertode via `COMBAT_LOG_EVENT_UNFILTERED` → `UNIT_DIED`
-- Filtert Pets/NPCs über GUID-Prefix `Player-`
-- Strichliste: Gruppen zu 5 als `卌`, Rest als `|`
-- Sortierung: meiste Tode oben
-- Drag & Drop – Fenster frei verschiebbar
-- ScrollFrame für viele Spieler
-- `SavedVariables: RaidDeathData` – überlebt `/reload`
-- Reset-Button im Fenster + `/rdt reset`
+- Filtert Pets/NPCs automatisch uber GUID-Prefix `Player-`
+- Funktioniert solo, in Party und Raid
+- Zeigt Top-5-Spieler mit Ranking und Todesanzahl
+- Modernes, schlankes Panel-Design ohne externe Bibliotheken
+- Drag & Drop – Fenster frei verschiebbar und in der Grosse anpassbar
+- Reset-Button im Fenster
+- Minimap-Button zum Ein-/Ausblenden (per Drag verschiebbar)
+- `SavedVariables: RaidDeathData, RDTConfig` – Daten und Position uberleben `/reload`
 
 ## Slash Commands
 
@@ -32,18 +33,10 @@ Ordner nach `World of Warcraft/_classic_/Interface/AddOns/WowRaidDeathTracker/` 
 | `/rdt show` | Fenster anzeigen |
 | `/rdt hide` | Fenster verstecken |
 | `/rdt toggle` | Fenster umschalten |
-| `/rdt reset` | Alle Tode zurücksetzen |
-
-## Mögliche Erweiterungen (für Claude Code)
-
-- Nur Tode in bestimmten Zonen/Raids zählen
-- Mindest-Gruppengröße als Filter
-- Boss-spezifisches Tracking (Tode pro Boss-Encounter)
-- Minimap-Button zum Ein-/Ausblenden
-- Farb-Konfiguration über Options-Panel
-- Export der Daten als Chat-Nachricht
+| `/rdt reset` | Alle Tode zurucksetzen |
+| `/rdt test` | Einen zufälligen Test-Eintrag hinzufügen |
+| `/rdt test clear` | Alle Daten zurucksetzen und Test-Badge ausblenden |
 
 ## Interface-Version
 
-`20504` = TBC Classic Phase 1. Bei anderen Phasen ggf. anpassen.
-Aktuelle Versionen: https://wowpedia.fandom.com/wiki/TOC_format
+`20505` = TBC Classic 2.5.5. Aktuelle Versionsnummern: https://wowpedia.fandom.com/wiki/TOC_format
