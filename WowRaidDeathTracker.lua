@@ -7,9 +7,6 @@
 local ADDON_NAME = "WowRaidDeathTracker"
 local TOP_N      = 5
 
--- Diagnose: Grosser Text auf dem Bildschirm wenn die Datei geladen wird
-UIErrorsFrame:AddMessage("RDT v2.3 Datei geladen!", 1, 0.6, 0)
-
 -- ----------------------------------------------------------------
 -- Core Frame (Events)
 -- ----------------------------------------------------------------
@@ -232,6 +229,23 @@ local ldbObj = LibStub("LibDataBroker-1-1"):NewDataObject("WowRaidDeathTracker",
 })
 
 -- ----------------------------------------------------------------
+-- Hilfsfunktion: sortierte Todesliste (desc count, asc name)
+-- ----------------------------------------------------------------
+local function GetSortedDeaths()
+    local sorted = {}
+    local total  = 0
+    for name, count in pairs(RaidDeathData) do
+        table.insert(sorted, { name = name, count = count })
+        total = total + count
+    end
+    table.sort(sorted, function(a, b)
+        if a.count ~= b.count then return a.count > b.count end
+        return a.name < b.name
+    end)
+    return sorted, total
+end
+
+-- ----------------------------------------------------------------
 -- UpdateDisplay
 -- ----------------------------------------------------------------
 local RANK_COLORS = {
@@ -248,16 +262,7 @@ function RaidDeathTrackerFrame:UpdateDisplay()
         return
     end
 
-    local sorted = {}
-    local total  = 0
-    for name, count in pairs(RaidDeathData) do
-        table.insert(sorted, { name = name, count = count })
-        total = total + count
-    end
-    table.sort(sorted, function(a, b)
-        if a.count ~= b.count then return a.count > b.count end
-        return a.name < b.name
-    end)
+    local sorted, total = GetSortedDeaths()
 
     local lines = {}
     for i = 1, math.min(TOP_N, #sorted) do
@@ -281,7 +286,6 @@ function RaidDeathTrackerFrame:UpdateDisplay()
     end
 
     local finalText = table.concat(lines, "\n") .. footer
-    print("|cff00ff00[RDT]|r Display: " .. #sorted .. " gesamt, " .. #lines .. " angezeigt")
     contentText:SetText(finalText)
 end
 
@@ -294,11 +298,7 @@ function PostDeathsToChat()
         return
     end
 
-    local sorted = {}
-    for name, count in pairs(RaidDeathData) do
-        table.insert(sorted, { name = name, count = count })
-    end
-    table.sort(sorted, function(a, b) return a.count > b.count end)
+    local sorted = GetSortedDeaths()
 
     local channel
     if testBadge:IsShown() then
@@ -318,7 +318,7 @@ function PostDeathsToChat()
     end
 
     send("( --< Raid Death Tracker >-- )")
-    for i = 1, math.min(5, #sorted) do
+    for i = 1, math.min(TOP_N, #sorted) do
         local e = sorted[i]
         send(string.format("#%d  %s  -- %dx", i, e.name, e.count))
     end
@@ -376,9 +376,7 @@ local function ActivateTestMode()
     for _, name in ipairs(TEST_NAMES) do
         RaidDeathData[name] = math.random(1, 15)
     end
-    local count = 0
-    for _ in pairs(RaidDeathData) do count = count + 1 end
-    print("|cff00ff00[RDT]|r Test: " .. count .. " Eintraege erstellt.")
+    print("|cff00ff00[RDT]|r Test: " .. #TEST_NAMES .. " Eintraege erstellt.")
     display:Show()
     frame:UpdateDisplay()
     testBadge:Show()
@@ -416,7 +414,7 @@ SlashCmdList["RAIDDEATHTRACKER"] = function(msg)
         print("  Eintraege: " .. count)
         print("  Panel sichtbar: " .. tostring(display:IsShown()))
         print("  Panel groesse: " .. math.floor(display:GetWidth()) .. "x" .. math.floor(display:GetHeight()))
-        print("  Minimap-Winkel: " .. tostring(RDTConfig and RDTConfig.minimapAngle))
+        print("  Minimap-Winkel: " .. tostring(RDTConfig and RDTConfig.minimapPos))
         print("  Minimap-Btn groesse: " .. minimapBtn:GetWidth() .. "x" .. minimapBtn:GetHeight())
     else
         print("|cff00ff00[RDT]|r Befehle:")
