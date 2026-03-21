@@ -2,7 +2,7 @@
 ## Title: Raid Death Tracker
 ## Notes: Zählt Spielertode im Raid mit Strichliste
 ## Author: 
-## Version: 1.0.1
+## Version: 1.1.0
 ## SavedVariables: RaidDeathData RDTConfig
 
 libs\LibDBIcon-1-0.lua

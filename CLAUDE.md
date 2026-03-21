@@ -25,8 +25,23 @@ WowRaidDeathTracker/
     LibDBIcon-1-0.lua   -- LibStub + LDB + LibDBIcon (nicht editieren)
   WowRaidDeathTracker.toc
   WowRaidDeathTracker.lua
+  CHANGELOG.md
+  README.md
   CLAUDE.md
 ```
+
+## Versionierung
+
+- Schema: **Semantic Versioning** (`MAJOR.MINOR.PATCH`)
+- Version steht in `WowRaidDeathTracker.toc` (`## Version`) und im Lua-Header-Kommentar
+- Releases werden als **Git-Tags** gesetzt: `git tag v1.1.0`
+- Jeder Release erhält einen Eintrag in `CHANGELOG.md` (Format: Keep a Changelog)
+
+| Bump | Wann |
+|---|---|
+| `PATCH` | Bugfixes ohne neue Features |
+| `MINOR` | Neue Features, rückwärtskompatibel |
+| `MAJOR` | Brechende Änderungen (z.B. SavedVariables-Format) |
 
 ## SavedVariables
 - `RaidDeathData` — table: `{ [playerName] = count }`

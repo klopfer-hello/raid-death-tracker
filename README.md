@@ -1,6 +1,8 @@
 # WowRaidDeathTracker
 
-TBC Classic Anniversary Addon (2.5.5) – verfolgt Spielertode solo, in Party und Raid und zeigt ein Ranking der meisten Tode.
+**v1.1.0** — TBC Classic Anniversary Addon (2.5.5)
+
+Verfolgt Spielertode in Party und Raid, zeigt ein Top-5-Ranking und kann die Ergebnisse in den Gruppen-Chat posten.
 
 ## Dateien
 
@@ -8,6 +10,8 @@ TBC Classic Anniversary Addon (2.5.5) – verfolgt Spielertode solo, in Party un
 |---|---|
 | `WowRaidDeathTracker.toc` | Addon-Manifest (Interface-Version, SavedVariables) |
 | `WowRaidDeathTracker.lua` | Gesamte Logik: Events, UI, Minimap-Button, Slash-Commands |
+| `libs/LibDBIcon-1-0.lua` | Eingebettete Bibliotheken: LibStub, LibDataBroker-1-1, LibDBIcon-1.0 |
+| `CHANGELOG.md` | Versionshistorie |
 
 ## Installation
 
@@ -40,3 +44,7 @@ Ordner nach `World of Warcraft/_anniversary_/Interface/AddOns/WowRaidDeathTracke
 ## Interface-Version
 
 `20505` = TBC Classic 2.5.5. Aktuelle Versionsnummern: https://wowpedia.fandom.com/wiki/TOC_format
+
+## Versionierung
+
+Dieses Projekt folgt [Semantic Versioning](https://semver.org/). Alle Änderungen sind in [CHANGELOG.md](CHANGELOG.md) dokumentiert.
