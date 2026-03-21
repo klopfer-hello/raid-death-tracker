@@ -396,14 +396,12 @@ SLASH_RAIDDEATHTRACKER1 = "/rdt"
 SlashCmdList["RAIDDEATHTRACKER"] = function(msg)
     msg = msg:lower():match("^%s*(.-)%s*$")
 
-    if     msg == "reset"      then
+    if     msg == ""           then
+        if display:IsShown() then display:Hide() else display:Show() end
+    elseif msg == "reset"      then
         RaidDeathData = {}
         frame:UpdateDisplay()
         print("|cff00ff00[RDT]|r Tode zurueckgesetzt.")
-    elseif msg == "show"       then display:Show()
-    elseif msg == "hide"       then display:Hide()
-    elseif msg == "toggle"     then
-        if display:IsShown() then display:Hide() else display:Show() end
     elseif msg == "post"       then PostDeathsToChat()
     elseif msg == "test"       then ActivateTestMode()
     elseif msg == "test clear" then DeactivateTestMode()
@@ -418,13 +416,11 @@ SlashCmdList["RAIDDEATHTRACKER"] = function(msg)
         print("  Minimap-Btn groesse: " .. minimapBtn:GetWidth() .. "x" .. minimapBtn:GetHeight())
     else
         print("|cff00ff00[RDT]|r Befehle:")
-        print("  /rdt show        - Fenster anzeigen")
-        print("  /rdt hide        - Fenster verstecken")
-        print("  /rdt toggle      - Fenster umschalten")
-        print("  /rdt reset       - Alle Tode zuruecksetzen")
-        print("  /rdt post        - Top 5 in Raid/Party posten")
-        print("  /rdt test        - Testmodus (Dummy-Daten)")
-        print("  /rdt test clear  - Testmodus beenden")
-        print("  /rdt debug       - Debug-Informationen anzeigen")
+        print("  /rdt            - Fenster ein/ausblenden")
+        print("  /rdt reset      - Alle Tode zuruecksetzen")
+        print("  /rdt post       - Top 5 in Raid/Party posten")
+        print("  /rdt test       - Testmodus (Dummy-Daten)")
+        print("  /rdt test clear - Testmodus beenden")
+        print("  /rdt debug      - Debug-Informationen anzeigen")
     end
 end
