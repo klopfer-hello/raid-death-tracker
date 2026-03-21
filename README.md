@@ -16,26 +16,26 @@ Ordner nach `World of Warcraft/_anniversary_/Interface/AddOns/WowRaidDeathTracke
 ## Features
 
 - Erkennt Spielertode via `COMBAT_LOG_EVENT_UNFILTERED` → `UNIT_DIED`
-- Filtert Pets/NPCs automatisch uber GUID-Prefix `Player-`
-- Funktioniert solo, in Party und Raid
+- Filtert Pets/NPCs automatisch über GUID-Prefix `Player-`
+- Nur Tode eigener Gruppen-/Raid-Mitglieder werden gezählt
+- Panel erscheint automatisch beim Betreten einer Gruppe/Raid und versteckt sich beim Verlassen
 - Zeigt Top-5-Spieler mit Ranking und Todesanzahl
-- Modernes, schlankes Panel-Design ohne externe Bibliotheken
-- Drag & Drop – Fenster frei verschiebbar und in der Grosse anpassbar
-- Reset-Button im Fenster
+- Top-5 per Knopf oder Slash-Command in Raid/Party-Chat posten
+- Design angelehnt an FishingKit (Cyan-Akzent, D-Palette)
+- Drag & Drop – Fenster frei verschiebbar und in der Größe anpassbar
 - Minimap-Button zum Ein-/Ausblenden (per Drag verschiebbar)
-- `SavedVariables: RaidDeathData, RDTConfig` – Daten und Position uberleben `/reload`
+- `SavedVariables: RaidDeathData, RDTConfig` – Daten und Position überleben `/reload`
 
 ## Slash Commands
 
 | Befehl | Funktion |
 |---|---|
-| `/rdt` | Hilfe anzeigen |
-| `/rdt show` | Fenster anzeigen |
-| `/rdt hide` | Fenster verstecken |
-| `/rdt toggle` | Fenster umschalten |
-| `/rdt reset` | Alle Tode zurucksetzen |
-| `/rdt test` | Einen zufälligen Test-Eintrag hinzufügen |
-| `/rdt test clear` | Alle Daten zurucksetzen und Test-Badge ausblenden |
+| `/rdt` | Fenster ein-/ausblenden |
+| `/rdt reset` | Alle Tode zurücksetzen |
+| `/rdt post` | Top 5 in Raid/Party-Chat posten |
+| `/rdt test` | Testmodus mit Dummy-Daten aktivieren |
+| `/rdt test clear` | Testmodus beenden |
+| `/rdt debug` | Debug-Informationen anzeigen |
 
 ## Interface-Version
 
