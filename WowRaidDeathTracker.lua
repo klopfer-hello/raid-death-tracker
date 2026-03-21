@@ -283,14 +283,14 @@ function PostDeathsToChat()
         return
     end
 
-    local sorted = GetSortedDeaths()
+    local sorted, total = GetSortedDeaths()
 
     SendChatMessage("( --< Raid Death Tracker >-- )", "EMOTE")
     for i = 1, math.min(TOP_N, #sorted) do
         local e = sorted[i]
         SendChatMessage(string.format("#%d  %s  -- %dx", i, e.name, e.count), "EMOTE")
     end
-    SendChatMessage("------------------------------", "EMOTE")
+    SendChatMessage(string.format("Total: %d deaths", total), "EMOTE")
 
     print("|cff00ff00[RDT]|r Top 5 im Emote-Channel gepostet.")
 end
