@@ -347,10 +347,11 @@ frame:SetScript("OnEvent", function(self, event, ...)
         UpdateGroupVisibility()
 
     elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
-        local _, subEvent, _, _, _, _, _, destGUID, destName =
+        local _, subEvent, _, _, _, _, _, destGUID, destName, _, _, unconsciousKiller =
             CombatLogGetCurrentEventInfo()
 
         if subEvent == "UNIT_DIED"
+            and not unconsciousKiller  -- Feign Death ausschliessen
             and destGUID
             and destGUID:sub(1, 6) == "Player"
             and (IsInRaid() or IsInGroup())
