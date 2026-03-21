@@ -285,32 +285,14 @@ function PostDeathsToChat()
 
     local sorted = GetSortedDeaths()
 
-    local channel
-    if testBadge:IsShown() then
-        channel = "SAY"
-    elseif IsInRaid() then
-        channel = "RAID"
-    elseif IsInGroup() then
-        channel = "PARTY"
-    end
-
-    local function send(msg)
-        if channel then
-            SendChatMessage(msg, channel)
-        else
-            print(msg)
-        end
-    end
-
-    send("( --< Raid Death Tracker >-- )")
+    SendChatMessage("( --< Raid Death Tracker >-- )", "EMOTE")
     for i = 1, math.min(TOP_N, #sorted) do
         local e = sorted[i]
-        send(string.format("#%d  %s  -- %dx", i, e.name, e.count))
+        SendChatMessage(string.format("#%d  %s  -- %dx", i, e.name, e.count), "EMOTE")
     end
-    send("------------------------------")
+    SendChatMessage("------------------------------", "EMOTE")
 
-    local dest = channel or "lokalen Chat"
-    print("|cff00ff00[RDT]|r Top 5 gepostet in " .. dest .. ".")
+    print("|cff00ff00[RDT]|r Top 5 im Emote-Channel gepostet.")
 end
 
 -- ----------------------------------------------------------------
