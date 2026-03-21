@@ -6,6 +6,7 @@
 
 local ADDON_NAME = "WowRaidDeathTracker"
 local TOP_N      = 5
+local viewIndex  = 0   -- 0 = live, 1..N = Session
 
 -- ----------------------------------------------------------------
 -- Core Frame (Events)
@@ -180,6 +181,24 @@ postBtn:SetScript("OnClick", function()
     PostDeathsToChat()
 end)
 
+-- Session-Navigation (Footer mitte)
+local function MakeArrowBtn(label)
+    local btn = CreateFrame("Button", nil, display)
+    btn:SetSize(16, 14)
+    local tex = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    tex:SetPoint("CENTER", 0, 0)
+    tex:SetText(label)
+    tex:SetTextColor(D.label[1], D.label[2], D.label[3])
+    btn:SetScript("OnEnter", function() tex:SetTextColor(D.value[1], D.value[2], D.value[3]) end)
+    btn:SetScript("OnLeave", function() tex:SetTextColor(D.label[1], D.label[2], D.label[3]) end)
+    return btn, tex
+end
+
+local prevBtn, prevTex = MakeArrowBtn("<")
+local nextBtn, nextTex = MakeArrowBtn(">")
+prevBtn:SetPoint("BOTTOM", display, "BOTTOM", -10, 6)
+nextBtn:SetPoint("BOTTOM", display, "BOTTOM",  10, 6)
+
 -- Resize-Griff (unten rechts)
 local resizeGrip = CreateFrame("Button", nil, display)
 resizeGrip:SetSize(14, 14)
@@ -217,10 +236,11 @@ local ldbObj = LibStub("LibDataBroker-1-1"):NewDataObject("WowRaidDeathTracker",
 -- ----------------------------------------------------------------
 -- Hilfsfunktion: sortierte Todesliste (desc count, asc name)
 -- ----------------------------------------------------------------
-local function GetSortedDeaths()
+local function GetSortedDeaths(data)
+    data = data or RaidDeathData
     local sorted = {}
     local total  = 0
-    for name, count in pairs(RaidDeathData) do
+    for name, count in pairs(data) do
         table.insert(sorted, { name = name, count = count })
         total = total + count
     end
@@ -230,6 +250,61 @@ local function GetSortedDeaths()
     end)
     return sorted, total
 end
+
+-- ----------------------------------------------------------------
+-- Session-Navigation Logik
+-- ----------------------------------------------------------------
+local isTestMode = false
+
+local function GetViewData()
+    if viewIndex > 0 and RDTSessions and RDTSessions[viewIndex] then
+        local s = RDTSessions[viewIndex]
+        return s.data, s.classes or {}
+    end
+    return RaidDeathData, RDTClassCache
+end
+
+local function UpdateNavUI()
+    local sessionCount = RDTSessions and #RDTSessions or 0
+    -- Badge
+    if viewIndex > 0 and RDTSessions and RDTSessions[viewIndex] then
+        testBadge:SetText("|cff888899[" .. RDTSessions[viewIndex].name .. "]|r")
+        testBadge:Show()
+    elseif isTestMode then
+        testBadge:SetText("|cffff9900[TEST]|r")
+        testBadge:Show()
+    else
+        testBadge:Hide()
+    end
+    -- Pfeile
+    local canPrev = viewIndex < sessionCount
+    local canNext = viewIndex > 0
+    prevTex:SetTextColor(canPrev and D.accent[1] or D.label[1],
+                         canPrev and D.accent[2] or D.label[2],
+                         canPrev and D.accent[3] or D.label[3])
+    nextTex:SetTextColor(canNext and D.accent[1] or D.label[1],
+                         canNext and D.accent[2] or D.label[2],
+                         canNext and D.accent[3] or D.label[3])
+    prevBtn:EnableMouse(canPrev)
+    nextBtn:EnableMouse(canNext)
+end
+
+prevBtn:SetScript("OnClick", function()
+    local sessionCount = RDTSessions and #RDTSessions or 0
+    if viewIndex < sessionCount then
+        viewIndex = viewIndex + 1
+        UpdateNavUI()
+        frame:UpdateDisplay()
+    end
+end)
+
+nextBtn:SetScript("OnClick", function()
+    if viewIndex > 0 then
+        viewIndex = viewIndex - 1
+        UpdateNavUI()
+        frame:UpdateDisplay()
+    end
+end)
 
 -- ----------------------------------------------------------------
 -- UpdateDisplay
@@ -243,19 +318,20 @@ local RANK_COLORS = {
 }
 
 function RaidDeathTrackerFrame:UpdateDisplay()
-    if not RaidDeathData or next(RaidDeathData) == nil then
+    local viewData, viewClasses = GetViewData()
+    if not viewData or not next(viewData) then
         contentText:SetText("|cff333344Keine Tode erfasst.|r")
         return
     end
 
-    local sorted, total = GetSortedDeaths()
+    local sorted, total = GetSortedDeaths(viewData)
 
     local lines = {}
     for i = 1, math.min(TOP_N, #sorted) do
         local e      = sorted[i]
         local rank   = RANK_COLORS[i] or "|cff999999"
         local nameColor = "|cffd1d6e1"
-        local classId = RDTClassCache and RDTClassCache[e.name]
+        local classId = viewClasses and viewClasses[e.name]
         if classId and RAID_CLASS_COLORS and RAID_CLASS_COLORS[classId] then
             local c = RAID_CLASS_COLORS[classId]
             nameColor = string.format("|cff%02x%02x%02x",
@@ -349,6 +425,8 @@ local function OnGroupRosterUpdate()
         print("|cff00ff00[RDT]|r Gruppe beigetreten – Daten zurueckgesetzt.")
     elseif not inGroup and wasInGroup then
         SaveSession()
+        viewIndex = 0
+        UpdateNavUI()
         display:Hide()
     elseif not inGroup then
         display:Hide()
@@ -415,6 +493,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
             minimapBtn = LibStub("LibDBIcon-1.0"):GetMinimapButton("WowRaidDeathTracker")
             self:UpdateDisplay()
             UpdateGroupVisibility()
+            UpdateNavUI()
             print("|cff00ff00[RDT]|r v1.2.0 Geladen. /rdt fuer Hilfe")
         end
 
@@ -462,6 +541,8 @@ local TEST_NAMES = {
 }
 
 local function ActivateTestMode()
+    isTestMode = true
+    viewIndex  = 0
     RaidDeathData = {}
     for _, name in ipairs(TEST_NAMES) do
         RaidDeathData[name] = math.random(1, 15)
@@ -469,13 +550,15 @@ local function ActivateTestMode()
     print("|cff00ff00[RDT]|r Test: " .. #TEST_NAMES .. " Eintraege erstellt.")
     display:Show()
     frame:UpdateDisplay()
-    testBadge:Show()
+    UpdateNavUI()
 end
 
 local function DeactivateTestMode()
-    testBadge:Hide()
+    isTestMode = false
+    viewIndex  = 0
     RaidDeathData = {}
     frame:UpdateDisplay()
+    UpdateNavUI()
     print("|cff00ff00[RDT]|r Testmodus beendet.")
 end
 
@@ -505,22 +588,6 @@ SlashCmdList["RAIDDEATHTRACKER"] = function(msg)
                 print(string.format("  %d. %s (%d Spieler)", i, s.name, count))
             end
         end
-    elseif msg:match("^session %d+$") then
-        local n = tonumber(msg:match("%d+"))
-        local s = RDTSessions and RDTSessions[n]
-        if not s then
-            print("|cff00ff00[RDT]|r Session " .. n .. " nicht gefunden.")
-        else
-            -- Session temporaer anzeigen (read-only)
-            local saved_data, saved_classes = RaidDeathData, RDTClassCache
-            RaidDeathData = s.data
-            RDTClassCache = s.classes or {}
-            frame:UpdateDisplay()
-            RaidDeathData, RDTClassCache = saved_data, saved_classes
-            testBadge:SetText("|cffff9900[" .. s.name .. "]|r")
-            testBadge:Show()
-            display:Show()
-        end
     elseif msg == "test"       then ActivateTestMode()
     elseif msg == "test clear" then DeactivateTestMode()
     elseif msg == "debug"      then
@@ -538,7 +605,6 @@ SlashCmdList["RAIDDEATHTRACKER"] = function(msg)
         print("  /rdt reset      - Alle Tode zuruecksetzen")
         print("  /rdt post          - Top 5 im Emote-Channel posten")
         print("  /rdt sessions      - Gespeicherte Sessions anzeigen")
-        print("  /rdt session <n>   - Session n im Panel anzeigen")
         print("  /rdt test          - Testmodus (Dummy-Daten)")
         print("  /rdt test clear    - Testmodus beenden")
         print("  /rdt debug         - Debug-Informationen anzeigen")
