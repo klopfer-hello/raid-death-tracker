@@ -14,6 +14,10 @@ local frame = CreateFrame("Frame", "RaidDeathTrackerFrame", UIParent)
 frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+-- Gruppen-Events: per pcall, da Verfuegbarkeit je nach Client-Version variiert
+for _, evt in ipairs({"GROUP_ROSTER_UPDATE", "PARTY_MEMBERS_CHANGED", "RAID_ROSTER_UPDATE"}) do
+    pcall(frame.RegisterEvent, frame, evt)
+end
 
 -- ----------------------------------------------------------------
 -- Hilfsfunktion: 1px-Pixelrahmen aus 4 Texturen.
@@ -310,16 +314,23 @@ function PostDeathsToChat()
 end
 
 -- ----------------------------------------------------------------
--- Gruppen-Sichtbarkeit
+-- Gruppen-Sichtbarkeit + Auto-Reset beim Beitreten
 -- ----------------------------------------------------------------
+local wasInGroup = false
+
 local function UpdateGroupVisibility()
-    -- Testmodus: Fenster bleibt wie es ist (manuell gesteuert)
     if testBadge:IsShown() then return end
-    if IsInRaid() or IsInGroup() then
+    local inGroup = IsInRaid() or IsInGroup()
+    if inGroup and not wasInGroup then
+        -- Gruppe/Raid beigetreten: Daten zuruecksetzen und anzeigen
+        RaidDeathData = {}
+        frame:UpdateDisplay()
         display:Show()
-    else
+        print("|cff00ff00[RDT]|r Gruppe beigetreten – Daten zurueckgesetzt.")
+    elseif not inGroup then
         display:Hide()
     end
+    wasInGroup = inGroup
 end
 
 -- ----------------------------------------------------------------
@@ -343,7 +354,10 @@ frame:SetScript("OnEvent", function(self, event, ...)
             print("|cff00ff00[RDT]|r v2.3 Geladen. /rdt fuer Hilfe")
         end
 
-    elseif event == "PLAYER_ENTERING_WORLD" then
+    elseif event == "PLAYER_ENTERING_WORLD"
+        or event == "GROUP_ROSTER_UPDATE"
+        or event == "PARTY_MEMBERS_CHANGED"
+        or event == "RAID_ROSTER_UPDATE" then
         UpdateGroupVisibility()
 
     elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
