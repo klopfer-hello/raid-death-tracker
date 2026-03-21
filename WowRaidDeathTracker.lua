@@ -46,6 +46,20 @@ local function AddPixelBorder(parent, r, g, b, a)
 end
 
 -- ----------------------------------------------------------------
+-- Design-Palette (analog FishingKit)
+-- ----------------------------------------------------------------
+local D = {
+    bg      = {0.04, 0.04, 0.06},  bgA  = 0.92,
+    border  = {0.18, 0.18, 0.23},  borA = 0.80,
+    divider = {0.14, 0.14, 0.18},  divA = 0.90,
+    accent  = {0.28, 0.74, 0.97},   -- soft cyan
+    label   = {0.40, 0.40, 0.45},   -- muted
+    value   = {0.82, 0.84, 0.88},   -- bright
+    danger  = {0.90, 0.30, 0.30},   -- red
+    barBg   = {0.07, 0.07, 0.09},
+}
+
+-- ----------------------------------------------------------------
 -- Display Frame
 -- ----------------------------------------------------------------
 local display = CreateFrame("Frame", "RaidDeathTrackerDisplay", UIParent)
@@ -64,43 +78,27 @@ if display.SetResizeBounds then
     display:SetResizeBounds(220, 150)
 elseif display.SetResizable then
     display:SetResizable(true)
-    if display.SetMinResize then
-        display:SetMinResize(220, 150)
-    end
+    if display.SetMinResize then display:SetMinResize(220, 150) end
 end
 
--- Haupthintergrund
+-- Hintergrund
 local bg = display:CreateTexture(nil, "BACKGROUND")
 bg:SetAllPoints()
-bg:SetColorTexture(0.04, 0.04, 0.07, 0.92)
+bg:SetColorTexture(D.bg[1], D.bg[2], D.bg[3], D.bgA)
 
--- 1px Rahmen (keine Backdrop-API nötig)
-AddPixelBorder(display, 0.22, 0.22, 0.28, 1)
-
--- Header-Balken
-local headerBg = display:CreateTexture(nil, "ARTWORK")
-headerBg:SetPoint("TOPLEFT",  1, -1)
-headerBg:SetPoint("TOPRIGHT", -1, -1)
-headerBg:SetHeight(24)
-headerBg:SetColorTexture(0.10, 0.10, 0.16, 1)
-
--- Rote Akzentlinie unter Header
-local headerLine = display:CreateTexture(nil, "ARTWORK")
-headerLine:SetPoint("TOPLEFT",  1, -25)
-headerLine:SetPoint("TOPRIGHT", -1, -25)
-headerLine:SetHeight(1)
-headerLine:SetColorTexture(0.50, 0.10, 0.10, 1)
+-- 1px Rahmen
+AddPixelBorder(display, D.border[1], D.border[2], D.border[3], D.borA)
 
 -- Icon (Header)
 local icon = display:CreateTexture(nil, "OVERLAY")
 icon:SetSize(16, 16)
-icon:SetPoint("TOPLEFT", 6, -4)
+icon:SetPoint("TOPLEFT", 10, -8)
 icon:SetTexture("Interface\\Icons\\Spell_Shadow_DeathCoil")
 
 -- Titel
 local titleText = display:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 titleText:SetPoint("LEFT", icon, "RIGHT", 5, 0)
-titleText:SetText("|cffcc2222Raid|r |cffccccccDeath Tracker|r")
+titleText:SetText("|cff47bef5Raid Death Tracker|r")
 
 -- TEST-Badge (neben Titel, nur im Testmodus sichtbar)
 local testBadge = display:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -108,61 +106,62 @@ testBadge:SetPoint("LEFT", titleText, "RIGHT", 6, 0)
 testBadge:SetText("|cffff9900[TEST]|r")
 testBadge:Hide()
 
--- Schliessen-Button
+-- Schliessen-Button (FishingKit-Stil)
 local closeBtn = CreateFrame("Button", nil, display)
-closeBtn:SetSize(18, 18)
-closeBtn:SetPoint("TOPRIGHT", -4, -3)
+closeBtn:SetSize(16, 16)
+closeBtn:SetPoint("TOPRIGHT", -8, -8)
+local closeBtnBg = closeBtn:CreateTexture(nil, "BACKGROUND")
+closeBtnBg:SetAllPoints()
+closeBtnBg:SetColorTexture(D.barBg[1], D.barBg[2], D.barBg[3], 0.8)
 local closeTex = closeBtn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-closeTex:SetAllPoints()
-closeTex:SetText("|cff555566x|r")
-closeBtn:SetScript("OnEnter", function() closeTex:SetText("|cffff3333x|r") end)
-closeBtn:SetScript("OnLeave", function() closeTex:SetText("|cff555566x|r") end)
+closeTex:SetPoint("CENTER", 0, 0)
+closeTex:SetText("x")
+closeTex:SetTextColor(D.label[1], D.label[2], D.label[3])
+closeBtn:SetScript("OnEnter", function() closeTex:SetTextColor(D.value[1], D.value[2], D.value[3]) end)
+closeBtn:SetScript("OnLeave", function() closeTex:SetTextColor(D.label[1], D.label[2], D.label[3]) end)
 closeBtn:SetScript("OnClick", function() display:Hide() end)
+
+-- Trennlinie unter Header
+local headerLine = display:CreateTexture(nil, "ARTWORK")
+headerLine:SetPoint("TOPLEFT",  10, -28)
+headerLine:SetPoint("TOPRIGHT", -10, -28)
+headerLine:SetHeight(1)
+headerLine:SetColorTexture(D.divider[1], D.divider[2], D.divider[3], D.divA)
 
 -- Content-Text
 local contentText = display:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-contentText:SetPoint("TOPLEFT", display, "TOPLEFT", 10, -34)
+contentText:SetPoint("TOPLEFT", display, "TOPLEFT", 10, -36)
 contentText:SetWidth(240)
 contentText:SetJustifyH("LEFT")
 contentText:SetJustifyV("TOP")
 
--- Footer-Balken
-local footerBg = display:CreateTexture(nil, "ARTWORK")
-footerBg:SetPoint("BOTTOMLEFT",  1, 1)
-footerBg:SetPoint("BOTTOMRIGHT", -1, 1)
-footerBg:SetHeight(22)
-footerBg:SetColorTexture(0.07, 0.07, 0.11, 1)
-
--- Footer-Trennlinie
+-- Trennlinie über Footer
 local footerLine = display:CreateTexture(nil, "ARTWORK")
-footerLine:SetPoint("BOTTOMLEFT",  1, 23)
-footerLine:SetPoint("BOTTOMRIGHT", -1, 23)
+footerLine:SetPoint("BOTTOMLEFT",  10, 24)
+footerLine:SetPoint("BOTTOMRIGHT", -10, 24)
 footerLine:SetHeight(1)
-footerLine:SetColorTexture(0.18, 0.18, 0.24, 1)
+footerLine:SetColorTexture(D.divider[1], D.divider[2], D.divider[3], D.divA)
+
+-- Hilfsfunktion: Footer-Button im FishingKit-Stil
+local function MakeFooterBtn(label, r, g, b)
+    local btn = CreateFrame("Button", nil, display)
+    btn:SetSize(54, 14)
+    local btnBg = btn:CreateTexture(nil, "BACKGROUND")
+    btnBg:SetAllPoints()
+    btnBg:SetColorTexture(D.barBg[1], D.barBg[2], D.barBg[3], 0.8)
+    AddPixelBorder(btn, r, g, b, 0.6)
+    local btnText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    btnText:SetPoint("CENTER", 0, 0)
+    btnText:SetText(label)
+    btnText:SetTextColor(r, g, b)
+    btn:SetScript("OnEnter", function() btnText:SetTextColor(D.value[1], D.value[2], D.value[3]) end)
+    btn:SetScript("OnLeave", function() btnText:SetTextColor(r, g, b) end)
+    return btn
+end
 
 -- Reset-Button (Footer links)
-local resetBtn = CreateFrame("Button", nil, display)
-resetBtn:SetSize(54, 14)
-resetBtn:SetPoint("BOTTOMLEFT", 8, 5)
-
-local resetBtnBg = resetBtn:CreateTexture(nil, "BACKGROUND")
-resetBtnBg:SetAllPoints()
-resetBtnBg:SetColorTexture(0.20, 0.06, 0.06, 1)
-
-AddPixelBorder(resetBtn, 0.38, 0.12, 0.12, 0.9)
-
-local resetBtnText = resetBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-resetBtnText:SetAllPoints()
-resetBtnText:SetText("|cff993333Reset|r")
-
-resetBtn:SetScript("OnEnter", function()
-    resetBtnBg:SetColorTexture(0.32, 0.08, 0.08, 1)
-    resetBtnText:SetText("|cffff4444Reset|r")
-end)
-resetBtn:SetScript("OnLeave", function()
-    resetBtnBg:SetColorTexture(0.20, 0.06, 0.06, 1)
-    resetBtnText:SetText("|cff993333Reset|r")
-end)
+local resetBtn = MakeFooterBtn("Reset", D.danger[1], D.danger[2], D.danger[3])
+resetBtn:SetPoint("BOTTOMLEFT", 8, 6)
 resetBtn:SetScript("OnClick", function()
     RaidDeathData = {}
     frame:UpdateDisplay()
@@ -170,28 +169,8 @@ resetBtn:SetScript("OnClick", function()
 end)
 
 -- Post-Button (Footer rechts)
-local postBtn = CreateFrame("Button", nil, display)
-postBtn:SetSize(54, 14)
-postBtn:SetPoint("BOTTOMRIGHT", -18, 5)
-
-local postBtnBg = postBtn:CreateTexture(nil, "BACKGROUND")
-postBtnBg:SetAllPoints()
-postBtnBg:SetColorTexture(0.06, 0.14, 0.24, 1)
-
-AddPixelBorder(postBtn, 0.12, 0.28, 0.48, 0.9)
-
-local postBtnText = postBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-postBtnText:SetAllPoints()
-postBtnText:SetText("|cff3399ccPost|r")
-
-postBtn:SetScript("OnEnter", function()
-    postBtnBg:SetColorTexture(0.08, 0.20, 0.36, 1)
-    postBtnText:SetText("|cff55bbffPost|r")
-end)
-postBtn:SetScript("OnLeave", function()
-    postBtnBg:SetColorTexture(0.06, 0.14, 0.24, 1)
-    postBtnText:SetText("|cff3399ccPost|r")
-end)
+local postBtn = MakeFooterBtn("Post", D.accent[1], D.accent[2], D.accent[3])
+postBtn:SetPoint("BOTTOMRIGHT", -18, 6)
 postBtn:SetScript("OnClick", function()
     PostDeathsToChat()
 end)
@@ -224,9 +203,9 @@ local ldbObj = LibStub("LibDataBroker-1-1"):NewDataObject("WowRaidDeathTracker",
         end
     end,
     OnTooltipShow = function(tt)
-        tt:AddLine("|cffcc2222Raid|r Death Tracker")
-        tt:AddLine("|cffaaaaaa[Klick]|r Panel ein/ausblenden", 1, 1, 1)
-        tt:AddLine("|cffaaaaaa[Drag] |r Position verschieben",  1, 1, 1)
+        tt:AddLine("|cff47bef5Raid Death Tracker|r")
+        tt:AddLine("|cff666672[Klick]|r Panel ein/ausblenden", 1, 1, 1)
+        tt:AddLine("|cff666672[Drag] |r Position verschieben",  1, 1, 1)
     end,
 })
 
@@ -254,8 +233,8 @@ local RANK_COLORS = {
     "|cffffcc00",  -- #1 Gold
     "|cffbbbbbb",  -- #2 Silber
     "|cffcd7f32",  -- #3 Bronze
-    "|cff999999",  -- #4
-    "|cff999999",  -- #5
+    "|cff666672",  -- #4  (D.label)
+    "|cff666672",  -- #5  (D.label)
 }
 
 function RaidDeathTrackerFrame:UpdateDisplay()
@@ -271,7 +250,7 @@ function RaidDeathTrackerFrame:UpdateDisplay()
         local e   = sorted[i]
         local col = RANK_COLORS[i] or "|cff999999"
         table.insert(lines, string.format(
-            "%s#%d|r  |cffdd4444%s|r   |cff777788%dx|r",
+            "%s#%d|r  |cffd1d6e1%s|r   |cff666672%dx|r",
             col, i, e.name, e.count
         ))
     end
