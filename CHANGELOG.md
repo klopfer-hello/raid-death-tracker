@@ -7,6 +7,17 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.3.0] - 2026-03-21
+
+### Added
+- Session-Navigation direkt im Panel via `<` / `>` Buttons im Footer
+- Badge zeigt Session-Namen beim Browsen
+
+### Fixed
+- Klassenfarben: `RAID_CLASS_COLORS` durch eigene hardcodierte `CLASS_COLORS`-Tabelle ersetzt — zuverlässig in TBC Classic Anniversary
+
+---
+
 ## [1.2.0] - 2026-03-21
 
 ### Added

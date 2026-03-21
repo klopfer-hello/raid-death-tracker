@@ -34,7 +34,7 @@ WowRaidDeathTracker/
 
 - Schema: **Semantic Versioning** (`MAJOR.MINOR.PATCH`)
 - Version steht in `WowRaidDeathTracker.toc` (`## Version`) und im Lua-Header-Kommentar
-- Releases werden als **Git-Tags** gesetzt: `git tag v1.1.0`
+- Releases werden als **Git-Tags** gesetzt: `git tag v1.3.0`
 - Jeder Release erhält einen Eintrag in `CHANGELOG.md` (Format: Keep a Changelog)
 
 | Bump | Wann |
@@ -42,6 +42,19 @@ WowRaidDeathTracker/
 | `PATCH` | Bugfixes ohne neue Features |
 | `MINOR` | Neue Features, rückwärtskompatibel |
 | `MAJOR` | Brechende Änderungen (z.B. SavedVariables-Format) |
+
+### Release-Checkliste
+
+Ein Release besteht aus folgenden Schritten — immer in dieser Reihenfolge:
+
+1. `git log vX.Y.Z..HEAD --oneline` — Commits seit letztem Release sichten
+2. Version bestimmen (PATCH / MINOR / MAJOR)
+3. `CHANGELOG.md` — neuen Abschnitt `## [X.Y.Z] - YYYY-MM-DD` mit Added / Changed / Fixed eintragen
+4. `WowRaidDeathTracker.toc` — `## Version: X.Y.Z` aktualisieren
+5. `WowRaidDeathTracker.lua` — Header-Kommentar `v X.Y.Z` und Lade-Print aktualisieren
+6. `README.md` — Versionsbadge aktualisieren falls vorhanden
+7. Commit: `chore: release vX.Y.Z`
+8. Tag setzen: `git tag vX.Y.Z`
 
 ## SavedVariables
 - `RaidDeathData` — table: `{ [playerName] = count }`
