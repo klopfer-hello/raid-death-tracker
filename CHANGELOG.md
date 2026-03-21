@@ -7,6 +7,29 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.2.0] - 2026-03-21
+
+### Added
+- Spielernamen werden anhand ihrer Klasse eingefärbt (`RAID_CLASS_COLORS`), Klasse wird in `RDTClassCache` gespeichert
+- "Most Valuable Corpse" — Titel für den Spieler mit den meisten Toden, erscheint unter der Rangliste
+- Session-Verwaltung: beim Verlassen einer Gruppe wird die Session automatisch gespeichert (Zone + Datum), max. 5 Sessions (FIFO)
+- `/rdt sessions` — listet alle gespeicherten Sessions
+- `/rdt session <n>` — zeigt Session n read-only im Panel
+- Gesamtanzahl der Tode wird beim `/rdt post` mit ausgegeben
+- TOC: Icon (`Spell_Shadow_DeathCoil`) und Kategorie (`Hall of Shame`)
+
+### Changed
+- Post-Ausgabe immer im `EMOTE`-Channel (keine Kanal-Erkennung mehr)
+- `PLAYER_ENTERING_WORLD` löst keinen Daten-Reset mehr aus — nur echter Gruppen-Beitritt setzt zurück
+
+### Fixed
+- Hunter Totenstellen (Feign Death) wird via 3-Sekunden-Verzögerung erkannt — nur Hunter betroffen
+- Gruppen-/Raid-Mitglieder werden via `UnitExists()`-Iteration gefunden statt `GetNumRaidMembers()` (unzuverlässig in TBC Classic Anniversary)
+- Daten gingen nach `/reload` verloren durch fälschlichen Auto-Reset bei `PLAYER_ENTERING_WORLD`
+- Nur Tode eigener Gruppe werden gezählt (kein Open-World-Tracking mehr)
+
+---
+
 ## [1.1.0] - 2026-03-21
 
 ### Added
