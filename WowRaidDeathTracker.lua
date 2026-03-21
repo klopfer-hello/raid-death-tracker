@@ -311,9 +311,13 @@ function PostDeathsToChat()
         channel = "PARTY"
     end
 
+    local function stripColors(s)
+        return (s:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+    end
+
     local function send(msg)
         if channel then
-            SendChatMessage(msg, channel)
+            SendChatMessage(stripColors(msg), channel)
         else
             print(msg)
         end
@@ -323,11 +327,11 @@ function PostDeathsToChat()
         "|cffffcc00", "|cffbbbbbb", "|cffcd7f32", "|cff999999", "|cff999999",
     }
 
-    send("|cff555566 ( |r|cffcc2222--<|r |cffffcc00Raid Death Tracker|r |cffcc2222>--|r")
+    send("|cff555566 ( --< |r|cffffcc00Raid Death Tracker|r |cff555566>-- )|r")
     for i = 1, math.min(5, #sorted) do
         local e   = sorted[i]
         local col = RANK_COLORS_C[i] or "|cff999999"
-        send(string.format("%s#%d|r  %s  |cff777788-- %dx|r", col, i, e.name, e.count))
+        send(string.format("%s#%d|r  %s  -- %dx", col, i, e.name, e.count))
     end
     send("|cff333355------------------------------|r")
 
