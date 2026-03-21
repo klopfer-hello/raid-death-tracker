@@ -374,6 +374,8 @@ frame:SetScript("OnEvent", function(self, event, ...)
         if subEvent == "UNIT_DIED"
             and destGUID
             and destGUID:sub(1, 6) == "Player"
+            and (IsInRaid() or IsInGroup())
+            and (UnitInRaid(destName) or UnitInParty(destName))
         then
             destName = destName or "Unknown"
             RaidDeathData[destName] = (RaidDeathData[destName] or 0) + 1
