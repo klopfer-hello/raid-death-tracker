@@ -334,6 +334,41 @@ local function UpdateGroupVisibility()
 end
 
 -- ----------------------------------------------------------------
+-- Feign-Death-Erkennung: Tod erst nach 3s bestaetigen
+-- ----------------------------------------------------------------
+local FEIGN_DEATH_DELAY = 3
+local pendingDeaths = {}  -- { [name] = { time = t, token = "raid1"|"party1"|"player" } }
+
+local deathCheckFrame = CreateFrame("Frame")
+
+local function FindUnitToken(name)
+    if UnitName("player") == name then return "player" end
+    for i = 1, GetNumRaidMembers() do
+        if UnitName("raid"..i) == name then return "raid"..i end
+    end
+    for i = 1, GetNumPartyMembers() do
+        if UnitName("party"..i) == name then return "party"..i end
+    end
+end
+
+local function OnDeathCheck(self)
+    local now = GetTime()
+    for name, entry in pairs(pendingDeaths) do
+        if now - entry.time >= FEIGN_DEATH_DELAY then
+            pendingDeaths[name] = nil
+            if UnitIsDead(entry.token) then
+                RaidDeathData[name] = (RaidDeathData[name] or 0) + 1
+                frame:UpdateDisplay()
+            end
+            -- andernfalls: Feign Death — nicht zaehlen
+        end
+    end
+    if not next(pendingDeaths) then
+        self:SetScript("OnUpdate", nil)
+    end
+end
+
+-- ----------------------------------------------------------------
 -- Event Handler
 -- ----------------------------------------------------------------
 frame:SetScript("OnEvent", function(self, event, ...)
@@ -361,11 +396,10 @@ frame:SetScript("OnEvent", function(self, event, ...)
         UpdateGroupVisibility()
 
     elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
-        local _, subEvent, _, _, _, _, _, destGUID, destName, _, _, unconsciousKiller =
+        local _, subEvent, _, _, _, _, _, destGUID, destName =
             CombatLogGetCurrentEventInfo()
 
         if subEvent == "UNIT_DIED"
-            and not unconsciousKiller  -- Feign Death ausschliessen
             and destGUID
             and destGUID:sub(1, 6) == "Player"
             and (IsInRaid() or IsInGroup())
@@ -385,8 +419,18 @@ frame:SetScript("OnEvent", function(self, event, ...)
                 end
             end
             if inGroup then
-                RaidDeathData[destName] = (RaidDeathData[destName] or 0) + 1
-                self:UpdateDisplay()
+                local token = FindUnitToken(destName)
+                if token then
+                    local _, classId = UnitClass(token)
+                    if classId == "HUNTER" then
+                        -- Feign Death moeglich: erst nach 3s bestaetigen
+                        pendingDeaths[destName] = { time = GetTime(), token = token }
+                        deathCheckFrame:SetScript("OnUpdate", OnDeathCheck)
+                    else
+                        RaidDeathData[destName] = (RaidDeathData[destName] or 0) + 1
+                        frame:UpdateDisplay()
+                    end
+                end
             end
         end
     end
