@@ -13,8 +13,7 @@ local TOP_N      = 5
 local frame = CreateFrame("Frame", "RaidDeathTrackerFrame", UIParent)
 frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 frame:RegisterEvent("ADDON_LOADED")
-frame:RegisterEvent("PARTY_MEMBERS_CHANGED")
-frame:RegisterEvent("RAID_ROSTER_UPDATE")
+frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 
 -- ----------------------------------------------------------------
 -- Hilfsfunktion: 1px-Pixelrahmen aus 4 Texturen.
@@ -365,7 +364,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
             print("|cff00ff00[RDT]|r v2.3 Geladen. /rdt fuer Hilfe")
         end
 
-    elseif event == "PARTY_MEMBERS_CHANGED" or event == "RAID_ROSTER_UPDATE" then
+    elseif event == "PLAYER_ENTERING_WORLD" then
         UpdateGroupVisibility()
 
     elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
