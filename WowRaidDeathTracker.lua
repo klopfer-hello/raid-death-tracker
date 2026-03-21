@@ -369,11 +369,25 @@ frame:SetScript("OnEvent", function(self, event, ...)
             and destGUID
             and destGUID:sub(1, 6) == "Player"
             and (IsInRaid() or IsInGroup())
-            and (UnitInRaid(destName) or UnitInParty(destName))
         then
-            destName = destName or "Unknown"
-            RaidDeathData[destName] = (RaidDeathData[destName] or 0) + 1
-            self:UpdateDisplay()
+            -- Nur eigene Gruppen-/Raid-Mitglieder zaehlen
+            local inGroup = false
+            if UnitName("player") == destName then
+                inGroup = true
+            else
+                for i = 1, GetNumRaidMembers() do
+                    if UnitName("raid"..i) == destName then inGroup = true; break end
+                end
+                if not inGroup then
+                    for i = 1, GetNumPartyMembers() do
+                        if UnitName("party"..i) == destName then inGroup = true; break end
+                    end
+                end
+            end
+            if inGroup then
+                RaidDeathData[destName] = (RaidDeathData[destName] or 0) + 1
+                self:UpdateDisplay()
+            end
         end
     end
 end)
