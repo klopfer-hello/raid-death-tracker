@@ -3,6 +3,6 @@
 ## Notes: Zählt Spielertode im Raid mit Strichliste
 ## Author: 
 ## Version: 1.0.0
-## SavedVariables: RaidDeathData
+## SavedVariables: RaidDeathData RDTConfig
 
 WowRaidDeathTracker.lua
