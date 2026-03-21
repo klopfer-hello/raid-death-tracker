@@ -300,11 +300,19 @@ end
 -- ----------------------------------------------------------------
 local wasInGroup = false
 
+-- Nur Sichtbarkeit aktualisieren, kein Reset (z.B. nach /reload)
 local function UpdateGroupVisibility()
     if testBadge:IsShown() then return end
     local inGroup = IsInRaid() or IsInGroup()
+    if inGroup then display:Show() else display:Hide() end
+    wasInGroup = inGroup
+end
+
+-- Reset + Anzeigen nur bei echtem Gruppen-Beitritt
+local function OnGroupRosterUpdate()
+    if testBadge:IsShown() then return end
+    local inGroup = IsInRaid() or IsInGroup()
     if inGroup and not wasInGroup then
-        -- Gruppe/Raid beigetreten: Daten zuruecksetzen und anzeigen
         RaidDeathData = {}
         frame:UpdateDisplay()
         display:Show()
@@ -375,11 +383,13 @@ frame:SetScript("OnEvent", function(self, event, ...)
             print("|cff00ff00[RDT]|r v1.1.0 Geladen. /rdt fuer Hilfe")
         end
 
-    elseif event == "PLAYER_ENTERING_WORLD"
-        or event == "GROUP_ROSTER_UPDATE"
+    elseif event == "PLAYER_ENTERING_WORLD" then
+        UpdateGroupVisibility()
+
+    elseif event == "GROUP_ROSTER_UPDATE"
         or event == "PARTY_MEMBERS_CHANGED"
         or event == "RAID_ROSTER_UPDATE" then
-        UpdateGroupVisibility()
+        OnGroupRosterUpdate()
 
     elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
         local _, subEvent, _, _, _, _, _, destGUID, destName =
