@@ -194,11 +194,12 @@ minimapBtn:SetFrameLevel(8)
 minimapBtn:EnableMouse(true)
 minimapBtn:RegisterForDrag("LeftButton")
 
--- Icon füllt den gesamten Button; SetTexCoord trimmt den Icon-Rahmen weg
+-- Icon 26x26 zentriert – passt in den transparenten Innenbereich des Rings
 local minimapBtnIcon = minimapBtn:CreateTexture(nil, "ARTWORK")
 minimapBtnIcon:SetTexture("Interface\\Icons\\Spell_Shadow_DeathCoil")
-minimapBtnIcon:SetAllPoints()
-minimapBtnIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+minimapBtnIcon:SetSize(26, 26)
+minimapBtnIcon:SetPoint("CENTER")
+minimapBtnIcon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 
 -- Goldener Kreisrahmen als Overlay (56x56 ist die korrekte Größe für 31px Button)
 local minimapBtnRing = minimapBtn:CreateTexture(nil, "OVERLAY")
@@ -345,13 +346,14 @@ local TEST_NAMES = {
 }
 
 local function ActivateTestMode()
-    if not RaidDeathData then RaidDeathData = {} end
-    local name = TEST_NAMES[math.random(1, #TEST_NAMES)]
-    RaidDeathData[name] = (RaidDeathData[name] or 0) + math.random(1, 5)
+    RaidDeathData = {}
+    for _, name in ipairs(TEST_NAMES) do
+        RaidDeathData[name] = math.random(1, 15)
+    end
     frame:UpdateDisplay()
     display:Show()
     testBadge:Show()
-    print("|cff00ff00[RDT]|r |cffff9900Test:|r " .. name .. " hinzugefuegt.")
+    print("|cff00ff00[RDT]|r |cffff9900Testmodus:|r Dummy-Daten geladen.")
 end
 
 local function DeactivateTestMode()
@@ -378,6 +380,15 @@ SlashCmdList["RAIDDEATHTRACKER"] = function(msg)
         if display:IsShown() then display:Hide() else display:Show() end
     elseif msg == "test"       then ActivateTestMode()
     elseif msg == "test clear" then DeactivateTestMode()
+    elseif msg == "debug"      then
+        local count = 0
+        if RaidDeathData then for _ in pairs(RaidDeathData) do count = count + 1 end end
+        print("|cff00ff00[RDT]|r Debug:")
+        print("  Eintraege: " .. count)
+        print("  Panel sichtbar: " .. tostring(display:IsShown()))
+        print("  Panel groesse: " .. math.floor(display:GetWidth()) .. "x" .. math.floor(display:GetHeight()))
+        print("  Minimap-Winkel: " .. tostring(RDTConfig and RDTConfig.minimapAngle))
+        print("  Minimap-Btn groesse: " .. minimapBtn:GetWidth() .. "x" .. minimapBtn:GetHeight())
     else
         print("|cff00ff00[RDT]|r Befehle:")
         print("  /rdt show        - Fenster anzeigen")
