@@ -59,4 +59,27 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 - Jede inhaltlich getrennte Änderung → eigener Commit
 - Immer `Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>` anhängen
 - Nie `--no-verify` oder force-push ohne explizite Aufforderung
-- Nutze connventional commit regeln
+- Nutze Conventional Commits Regeln
+
+## Code-Review-Regeln
+
+Bei jedem Review auf folgende Punkte achten:
+
+### Bugs
+- Debug-Artefakte (`print`, `UIErrorsFrame:AddMessage`) die in Produktion landen
+- Veraltete Variablennamen nach Refactorings (z.B. umbenannte SavedVariable-Felder)
+
+### Wartbarkeit
+- Magic Numbers — benannte Konstanten verwenden (z.B. `TOP_N` statt `5`)
+- Duplizierter Code — gemeinsame Logik in Hilfsfunktionen extrahieren, wenn sie an mehreren Stellen identisch vorkommt
+
+### Effizienz
+- Unnötige Schleifen wenn das Ergebnis bereits bekannt ist (z.B. `#table` statt manuelles Zählen)
+
+### Konsistenz
+- Sort-Stabilität: gleiche Sortierpredikate überall wo dieselbe Datenstruktur sortiert wird
+- Einheitliche Nutzung von definierten Konstanten im gesamten File
+
+### WoW-spezifisch
+- `SendChatMessage` akzeptiert keine WoW-Color-Escapes (`|c`, `|r`) — nie Pipe-Sequenzen in Chat-Nachrichten verwenden
+- FontString mit zwei Ankerpunkten (TOPLEFT + BOTTOMRIGHT) verhindert Mehrzeiligkeit in TBC Classic — stattdessen `SetWidth()` + einzelnen Ankerpunkt
