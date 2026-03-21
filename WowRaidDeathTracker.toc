@@ -5,4 +5,5 @@
 ## Version: 1.0.1
 ## SavedVariables: RaidDeathData RDTConfig
 
+libs\LibDBIcon-1-0.lua
 WowRaidDeathTracker.lua

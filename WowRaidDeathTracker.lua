@@ -7,8 +7,8 @@
 local ADDON_NAME = "WowRaidDeathTracker"
 local TOP_N      = 5
 
--- Diagnose: Diese Zeile erscheint im Chat wenn die Datei geladen wird
-print("|cffff9900[RDT]|r Datei wird geladen...")
+-- Diagnose: Grosser Text auf dem Bildschirm wenn die Datei geladen wird
+UIErrorsFrame:AddMessage("RDT v2.3 Datei geladen!", 1, 0.6, 0)
 
 -- ----------------------------------------------------------------
 -- Core Frame (Events)
@@ -120,13 +120,12 @@ closeBtn:SetScript("OnEnter", function() closeTex:SetText("|cffff3333x|r") end)
 closeBtn:SetScript("OnLeave", function() closeTex:SetText("|cff555566x|r") end)
 closeBtn:SetScript("OnClick", function() display:Hide() end)
 
--- Content-Text (wächst/schrumpft mit Resize)
+-- Content-Text
 local contentText = display:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-contentText:SetPoint("TOPLEFT",     10, -34)
-contentText:SetPoint("BOTTOMRIGHT", display, "BOTTOMRIGHT", -10, 26)
+contentText:SetPoint("TOPLEFT", display, "TOPLEFT", 10, -34)
+contentText:SetWidth(240)
 contentText:SetJustifyH("LEFT")
 contentText:SetJustifyV("TOP")
-contentText:SetWordWrap(false)
 
 -- Footer-Balken
 local footerBg = display:CreateTexture(nil, "ARTWORK")
@@ -186,77 +185,24 @@ resizeGrip:SetScript("OnMouseUp", function()
 end)
 
 -- ----------------------------------------------------------------
--- Minimap-Button
+-- Minimap-Button (via LibDBIcon)
 -- ----------------------------------------------------------------
-local MINIMAP_RADIUS = 80
+local minimapBtn  -- wird nach ADDON_LOADED gesetzt
 
-local minimapBtn = CreateFrame("Button", "RDTMinimapButton", Minimap)
-minimapBtn:SetSize(31, 31)
-minimapBtn:SetFrameStrata("MEDIUM")
-minimapBtn:SetFrameLevel(8)
-minimapBtn:EnableMouse(true)
-minimapBtn:RegisterForDrag("LeftButton")
-
--- Icon 26x26 zentriert – passt in den transparenten Innenbereich des Rings
-local minimapBtnIcon = minimapBtn:CreateTexture(nil, "ARTWORK")
-minimapBtnIcon:SetTexture("Interface\\Icons\\Spell_Shadow_DeathCoil")
-minimapBtnIcon:SetSize(26, 26)
-minimapBtnIcon:SetPoint("CENTER")
-minimapBtnIcon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-
--- Goldener Kreisrahmen als Overlay (56x56 ist die korrekte Größe für 31px Button)
-local minimapBtnRing = minimapBtn:CreateTexture(nil, "OVERLAY")
-minimapBtnRing:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
-minimapBtnRing:SetSize(56, 56)
-minimapBtnRing:SetPoint("CENTER")
-
--- Highlight beim Hover
-minimapBtn:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
-
-local function UpdateMinimapButtonPos()
-    local angle = (RDTConfig and RDTConfig.minimapAngle) or 220
-    local rad   = math.rad(angle)
-    minimapBtn:ClearAllPoints()
-    minimapBtn:SetPoint("CENTER", Minimap, "CENTER",
-        math.cos(rad) * MINIMAP_RADIUS,
-        math.sin(rad) * MINIMAP_RADIUS
-    )
-end
-
-minimapBtn:SetScript("OnDragStart", function(self)
-    self:LockHighlight()
-    self:SetScript("OnUpdate", function()
-        local mx, my = Minimap:GetCenter()
-        local cx, cy = GetCursorPosition()
-        local scale  = UIParent:GetEffectiveScale()
-        local angle  = math.deg(math.atan2((cy / scale) - my, (cx / scale) - mx))
-        if RDTConfig then RDTConfig.minimapAngle = angle end
-        UpdateMinimapButtonPos()
-    end)
-end)
-
-minimapBtn:SetScript("OnDragStop", function(self)
-    self:UnlockHighlight()
-    self:SetScript("OnUpdate", nil)
-end)
-
-minimapBtn:SetScript("OnClick", function(_, btn)
-    if btn == "LeftButton" then
-        if display:IsShown() then display:Hide() else display:Show() end
-    end
-end)
-
-minimapBtn:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-    GameTooltip:AddLine("|cffcc2222Raid|r Death Tracker")
-    GameTooltip:AddLine("|cffaaaaaa[Klick]|r Panel ein/ausblenden", 1, 1, 1)
-    GameTooltip:AddLine("|cffaaaaaa[Drag] |r Position verschieben",  1, 1, 1)
-    GameTooltip:Show()
-end)
-
-minimapBtn:SetScript("OnLeave", function()
-    GameTooltip:Hide()
-end)
+local ldbObj = LibStub("LibDataBroker-1-1"):NewDataObject("WowRaidDeathTracker", {
+    type = "launcher",
+    icon = "Interface\\Icons\\Spell_Shadow_DeathCoil",
+    OnClick = function(self, btn)
+        if btn == "LeftButton" then
+            if display:IsShown() then display:Hide() else display:Show() end
+        end
+    end,
+    OnTooltipShow = function(tt)
+        tt:AddLine("|cffcc2222Raid|r Death Tracker")
+        tt:AddLine("|cffaaaaaa[Klick]|r Panel ein/ausblenden", 1, 1, 1)
+        tt:AddLine("|cffaaaaaa[Drag] |r Position verschieben",  1, 1, 1)
+    end,
+})
 
 -- ----------------------------------------------------------------
 -- UpdateDisplay
@@ -321,8 +267,13 @@ frame:SetScript("OnEvent", function(self, event, ...)
         if name == ADDON_NAME then
             if not RaidDeathData then RaidDeathData = {} end
             if not RDTConfig then RDTConfig = {} end
-            if not RDTConfig.minimapAngle then RDTConfig.minimapAngle = 220 end
-            UpdateMinimapButtonPos()
+            -- Migration: altes minimapAngle-Feld -> minimapPos (LibDBIcon-Format)
+            if not RDTConfig.minimapPos then
+                RDTConfig.minimapPos = RDTConfig.minimapAngle or 220
+                RDTConfig.minimapAngle = nil
+            end
+            LibStub("LibDBIcon-1.0"):Register("WowRaidDeathTracker", ldbObj, RDTConfig)
+            minimapBtn = LibStub("LibDBIcon-1.0"):GetMinimapButton("WowRaidDeathTracker")
             self:UpdateDisplay()
             print("|cff00ff00[RDT]|r v2.3 Geladen. /rdt fuer Hilfe")
         end
