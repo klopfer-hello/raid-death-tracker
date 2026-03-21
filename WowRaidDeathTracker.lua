@@ -288,8 +288,6 @@ end
 -- ----------------------------------------------------------------
 -- Post Top 5 in Raid/Party
 -- ----------------------------------------------------------------
-local RANK_COLORS_CHAT = { "ff|cffffcc00", "ff|cffbbbbbb", "ff|cffcd7f32", "ff|cff999999", "ff|cff999999" }
-
 function PostDeathsToChat()
     if not RaidDeathData or next(RaidDeathData) == nil then
         print("|cff00ff00[RDT]|r Keine Daten zum Posten.")
@@ -311,29 +309,20 @@ function PostDeathsToChat()
         channel = "PARTY"
     end
 
-    local function stripColors(s)
-        return (s:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
-    end
-
     local function send(msg)
         if channel then
-            SendChatMessage(stripColors(msg), channel)
+            SendChatMessage(msg, channel)
         else
             print(msg)
         end
     end
 
-    local RANK_COLORS_C = {
-        "|cffffcc00", "|cffbbbbbb", "|cffcd7f32", "|cff999999", "|cff999999",
-    }
-
-    send("|cff555566 ( --< |r|cffffcc00Raid Death Tracker|r |cff555566>-- )|r")
+    send("( --< Raid Death Tracker >-- )")
     for i = 1, math.min(5, #sorted) do
-        local e   = sorted[i]
-        local col = RANK_COLORS_C[i] or "|cff999999"
-        send(string.format("%s#%d|r  %s  -- %dx", col, i, e.name, e.count))
+        local e = sorted[i]
+        send(string.format("#%d  %s  -- %dx", i, e.name, e.count))
     end
-    send("|cff333355------------------------------|r")
+    send("------------------------------")
 
     local dest = channel or "lokalen Chat"
     print("|cff00ff00[RDT]|r Top 5 gepostet in " .. dest .. ".")
