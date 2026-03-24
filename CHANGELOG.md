@@ -7,6 +7,17 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.3.1] - 2026-03-24
+
+### Added
+- `.pkgmeta` für CurseForge-Paketierung
+- Screenshots (Window, Chat) und Addon-Icon in `media/`
+
+### Changed
+- TOC Notes vereinfacht
+
+---
+
 ## [1.3.0] - 2026-03-21
 
 ### Added

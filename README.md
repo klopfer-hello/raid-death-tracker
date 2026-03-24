@@ -1,6 +1,6 @@
 # WowRaidDeathTracker
 
-**v1.3.0** — TBC Classic Anniversary Addon (2.5.5)
+**v1.3.1** — TBC Classic Anniversary Addon (2.5.5)
 
 Verfolgt Spielertode in Party und Raid, zeigt ein Top-5-Ranking und kann die Ergebnisse in den Gruppen-Chat posten.
 
