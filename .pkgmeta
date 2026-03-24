@@ -1,0 +1,15 @@
+package-as: WowRaidDeathTracker
+
+enable-nolib-creation: no
+
+ignore:
+  - .git
+  - .gitignore
+  - .claude
+  - .pkgmeta
+  - CLAUDE.md
+  - media
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
