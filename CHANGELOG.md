@@ -7,6 +7,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.3.2] - 2026-03-24
+
+### Changed
+- Translated all documentation, code comments, and UI text to English
+
+---
+
 ## [1.3.1] - 2026-03-24
 
 ### Added
