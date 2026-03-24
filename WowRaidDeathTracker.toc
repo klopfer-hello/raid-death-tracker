@@ -1,6 +1,6 @@
 ## Interface: 20505
 ## Title: Raid Death Tracker
-## Notes: Zählt Spielertode im Raid mit Strichliste
+## Notes: Zählt Spielertode im Raid
 ## Author:
 ## Version: 1.3.0
 ## IconTexture: Interface\Icons\Spell_Shadow_DeathCoil
