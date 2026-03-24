@@ -10,73 +10,73 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ## [1.3.1] - 2026-03-24
 
 ### Added
-- `.pkgmeta` für CurseForge-Paketierung
-- Screenshots (Window, Chat) und Addon-Icon in `media/`
+- `.pkgmeta` for CurseForge packaging
+- Screenshots (window, chat) and addon icon in `media/`
 
 ### Changed
-- TOC Notes vereinfacht
+- Simplified TOC notes
 
 ---
 
 ## [1.3.0] - 2026-03-21
 
 ### Added
-- Session-Navigation direkt im Panel via `<` / `>` Buttons im Footer
-- Badge zeigt Session-Namen beim Browsen
+- Session navigation in the panel via `<` / `>` buttons in the footer
+- Badge shows session name when browsing
 
 ### Fixed
-- Klassenfarben: `RAID_CLASS_COLORS` durch eigene hardcodierte `CLASS_COLORS`-Tabelle ersetzt — zuverlässig in TBC Classic Anniversary
+- Class colors: replaced `RAID_CLASS_COLORS` with hardcoded `CLASS_COLORS` table — reliable in TBC Classic Anniversary
 
 ---
 
 ## [1.2.0] - 2026-03-21
 
 ### Added
-- Spielernamen werden anhand ihrer Klasse eingefärbt (`RAID_CLASS_COLORS`), Klasse wird in `RDTClassCache` gespeichert
-- "Most Valuable Corpse" — Titel für den Spieler mit den meisten Toden, erscheint unter der Rangliste
-- Session-Verwaltung: beim Verlassen einer Gruppe wird die Session automatisch gespeichert (Zone + Datum), max. 5 Sessions (FIFO)
-- `/rdt sessions` — listet alle gespeicherten Sessions
-- `/rdt session <n>` — zeigt Session n read-only im Panel
-- Gesamtanzahl der Tode wird beim `/rdt post` mit ausgegeben
-- TOC: Icon (`Spell_Shadow_DeathCoil`) und Kategorie (`Hall of Shame`)
+- Player names colored by class (`RAID_CLASS_COLORS`), class stored in `RDTClassCache`
+- "Most Valuable Corpse" — title for the player with the most deaths, displayed below the ranking
+- Session management: session is automatically saved when leaving a group (zone + date), max 5 sessions (FIFO)
+- `/rdt sessions` — list all saved sessions
+- `/rdt session <n>` — view session n read-only in the panel
+- Total death count included in `/rdt post` output
+- TOC: icon (`Spell_Shadow_DeathCoil`) and category (`Hall of Shame`)
 
 ### Changed
-- Post-Ausgabe immer im `EMOTE`-Channel (keine Kanal-Erkennung mehr)
-- `PLAYER_ENTERING_WORLD` löst keinen Daten-Reset mehr aus — nur echter Gruppen-Beitritt setzt zurück
+- Post output always uses `EMOTE` channel (no more channel detection)
+- `PLAYER_ENTERING_WORLD` no longer triggers a data reset — only actual group join resets data
 
 ### Fixed
-- Hunter Totenstellen (Feign Death) wird via 3-Sekunden-Verzögerung erkannt — nur Hunter betroffen
-- Gruppen-/Raid-Mitglieder werden via `UnitExists()`-Iteration gefunden statt `GetNumRaidMembers()` (unzuverlässig in TBC Classic Anniversary)
-- Daten gingen nach `/reload` verloren durch fälschlichen Auto-Reset bei `PLAYER_ENTERING_WORLD`
-- Nur Tode eigener Gruppe werden gezählt (kein Open-World-Tracking mehr)
+- Hunter Feign Death detected via 3-second delay — only affects Hunters
+- Party/raid members found via `UnitExists()` iteration instead of `GetNumRaidMembers()` (unreliable in TBC Classic Anniversary)
+- Data was lost after `/reload` due to incorrect auto-reset on `PLAYER_ENTERING_WORLD`
+- Only deaths of own group members are counted (no more open-world tracking)
 
 ---
 
 ## [1.1.0] - 2026-03-21
 
 ### Added
-- Minimap button via embedded LibDBIcon-1.0 (LibStub + LibDataBroker-1-1 eingebettet)
-- Post top-5 deaths to raid/party chat — `/rdt post` und Post-Button im Footer
-- Test-Modus mit Dummy-Daten — `/rdt test` / `/rdt test clear`; postet im Testmodus in `/say`
-- Panel erscheint automatisch beim Beitreten einer Gruppe/Raid
-- Panel blendet sich automatisch aus beim Verlassen der Gruppe/Raid
-- Todesdaten werden automatisch zurückgesetzt beim Beitreten einer neuen Gruppe/Raid
-- Design-Palette `D` angelehnt an FishingKit (Cyan-Akzent, einheitliche Farben)
-- Hilfsfunktion `MakeFooterBtn` eliminiert duplizierten Button-Code
-- Hilfsfunktion `GetSortedDeaths` — gemeinsame Sortierliste für Display und Post
-- `/rdt debug` — zeigt Einträge, Panel-Größe und Minimap-Winkel
+- Minimap button via embedded LibDBIcon-1.0 (LibStub + LibDataBroker-1-1 embedded)
+- Post top-5 deaths to raid/party chat — `/rdt post` and post button in footer
+- Test mode with dummy data — `/rdt test` / `/rdt test clear`; posts to `/say` in test mode
+- Panel appears automatically when joining a group/raid
+- Panel hides automatically when leaving the group/raid
+- Death data automatically reset when joining a new group/raid
+- Design palette `D` inspired by FishingKit (cyan accent, uniform colors)
+- Helper function `MakeFooterBtn` eliminates duplicated button code
+- Helper function `GetSortedDeaths` — shared sorted list for display and post
+- `/rdt debug` — shows entries, panel size, and minimap angle
 
 ### Changed
-- `/rdt` allein toggelt das Panel (show/hide/toggle als separate Befehle entfernt)
-- Minimap-Button-Position wird in `RDTConfig.minimapPos` gespeichert (migriert von `minimapAngle`)
-- Titelfarbe auf Cyan (`#47bef5`) angepasst, roter Akzent entfernt
-- Schließen-Button und Footer-Buttons im FishingKit-Stil überarbeitet
-- Header-Balken entfernt zugunsten einer einzelnen Trennlinie unter Titel und Icon
+- `/rdt` alone toggles the panel (show/hide/toggle removed as separate commands)
+- Minimap button position stored in `RDTConfig.minimapPos` (migrated from `minimapAngle`)
+- Title color changed to cyan (`#47bef5`), red accent removed
+- Close button and footer buttons redesigned in FishingKit style
+- Header bar removed in favor of a single divider line below title and icon
 
 ### Fixed
-- Hunter Totenstellen (Feign Death) wurde fälschlicherweise als Tod gezählt — behoben via `unconsciousKiller`-Flag im Combat Log
-- Tode von fremden Spielern in der Open World wurden mitgezählt — nur noch eigene Gruppen-/Raid-Mitglieder (`UnitInRaid` / `UnitInParty`)
-- Gruppen-Events werden per `pcall` registriert um Addon-Load-Fehler bei ungültigen Event-Namen zu verhindern
-- FontString-Mehrzeiligkeit in TBC Classic: zwei Ankerpunkte (TOPLEFT + BOTTOMRIGHT) verhinderten Mehrzeiligkeit — auf `SetWidth()` + einzelnen Ankerpunkt umgestellt
-- Debug-Artefakte (`UIErrorsFrame:AddMessage`, debug `print` in `UpdateDisplay`) entfernt
-- Veralteter `minimapAngle`-Feldname im Debug-Output korrigiert auf `minimapPos`
+- Hunter Feign Death was incorrectly counted as a death — fixed via `unconsciousKiller` flag in combat log
+- Deaths of other players in the open world were counted — now only own party/raid members (`UnitInRaid` / `UnitInParty`)
+- Group events registered via `pcall` to prevent addon load errors on invalid event names
+- FontString multiline issue in TBC Classic: two anchor points (TOPLEFT + BOTTOMRIGHT) prevented multiline — switched to `SetWidth()` + single anchor
+- Debug artifacts (`UIErrorsFrame:AddMessage`, debug `print` in `UpdateDisplay`) removed
+- Outdated `minimapAngle` field name in debug output corrected to `minimapPos`

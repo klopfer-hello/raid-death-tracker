@@ -1,7 +1,7 @@
 -- ============================================================
 --  WowRaidDeathTracker  v1.3.1
 --  TBC Classic Anniversary (2.5.5)
---  Zählt Spielertode – solo, in Party und Raid.
+--  Tracks player deaths — solo, in party and raid.
 -- ============================================================
 
 local ADDON_NAME = "WowRaidDeathTracker"
@@ -15,14 +15,14 @@ local frame = CreateFrame("Frame", "RaidDeathTrackerFrame", UIParent)
 frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
--- Gruppen-Events: per pcall, da Verfuegbarkeit je nach Client-Version variiert
+-- Group events: via pcall, as availability varies by client version
 for _, evt in ipairs({"GROUP_ROSTER_UPDATE", "PARTY_MEMBERS_CHANGED", "RAID_ROSTER_UPDATE"}) do
     pcall(frame.RegisterEvent, frame, evt)
 end
 
 -- ----------------------------------------------------------------
--- Hilfsfunktion: 1px-Pixelrahmen aus 4 Texturen.
--- Kein BackdropTemplate, kein SetBackdrop – 100% kompatibel.
+-- Helper: 1px pixel border from 4 textures.
+-- No BackdropTemplate, no SetBackdrop — 100% compatible.
 -- ----------------------------------------------------------------
 local function AddPixelBorder(parent, r, g, b, a)
     local top = parent:CreateTexture(nil, "OVERLAY")
@@ -51,7 +51,7 @@ local function AddPixelBorder(parent, r, g, b, a)
 end
 
 -- ----------------------------------------------------------------
--- Design-Palette (analog FishingKit)
+-- Design palette (based on FishingKit)
 -- ----------------------------------------------------------------
 local D = {
     bg      = {0.04, 0.04, 0.06},  bgA  = 0.92,
@@ -76,9 +76,9 @@ display:RegisterForDrag("LeftButton")
 display:SetScript("OnDragStart", display.StartMoving)
 display:SetScript("OnDragStop",  display.StopMovingOrSizing)
 display:SetClampedToScreen(true)
-display:Hide()  -- standard: nur in Gruppe/Raid sichtbar
+display:Hide()  -- default: only visible in group/raid
 
--- Resize: neue API (SetResizeBounds) oder alte (SetResizable + SetMinResize)
+-- Resize: new API (SetResizeBounds) or old (SetResizable + SetMinResize)
 if display.SetResizeBounds then
     display:SetResizeBounds(220, 150)
 elseif display.SetResizable then
@@ -86,12 +86,12 @@ elseif display.SetResizable then
     if display.SetMinResize then display:SetMinResize(220, 150) end
 end
 
--- Hintergrund
+-- Background
 local bg = display:CreateTexture(nil, "BACKGROUND")
 bg:SetAllPoints()
 bg:SetColorTexture(D.bg[1], D.bg[2], D.bg[3], D.bgA)
 
--- 1px Rahmen
+-- 1px border
 AddPixelBorder(display, D.border[1], D.border[2], D.border[3], D.borA)
 
 -- Icon (Header)
@@ -100,18 +100,18 @@ icon:SetSize(16, 16)
 icon:SetPoint("TOPLEFT", 10, -8)
 icon:SetTexture("Interface\\Icons\\Spell_Shadow_DeathCoil")
 
--- Titel
+-- Title
 local titleText = display:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 titleText:SetPoint("LEFT", icon, "RIGHT", 5, 0)
 titleText:SetText("|cff47bef5Raid Death Tracker|r")
 
--- TEST-Badge (neben Titel, nur im Testmodus sichtbar)
+-- TEST badge (next to title, only visible in test mode)
 local testBadge = display:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 testBadge:SetPoint("LEFT", titleText, "RIGHT", 6, 0)
 testBadge:SetText("|cffff9900[TEST]|r")
 testBadge:Hide()
 
--- Schliessen-Button (FishingKit-Stil)
+-- Close button (FishingKit style)
 local closeBtn = CreateFrame("Button", nil, display)
 closeBtn:SetSize(16, 16)
 closeBtn:SetPoint("TOPRIGHT", -8, -8)
@@ -126,7 +126,7 @@ closeBtn:SetScript("OnEnter", function() closeTex:SetTextColor(D.value[1], D.val
 closeBtn:SetScript("OnLeave", function() closeTex:SetTextColor(D.label[1], D.label[2], D.label[3]) end)
 closeBtn:SetScript("OnClick", function() display:Hide() end)
 
--- Trennlinie unter Header
+-- Divider below header
 local headerLine = display:CreateTexture(nil, "ARTWORK")
 headerLine:SetPoint("TOPLEFT",  10, -28)
 headerLine:SetPoint("TOPRIGHT", -10, -28)
@@ -140,14 +140,14 @@ contentText:SetWidth(240)
 contentText:SetJustifyH("LEFT")
 contentText:SetJustifyV("TOP")
 
--- Trennlinie über Footer
+-- Divider above footer
 local footerLine = display:CreateTexture(nil, "ARTWORK")
 footerLine:SetPoint("BOTTOMLEFT",  10, 24)
 footerLine:SetPoint("BOTTOMRIGHT", -10, 24)
 footerLine:SetHeight(1)
 footerLine:SetColorTexture(D.divider[1], D.divider[2], D.divider[3], D.divA)
 
--- Hilfsfunktion: Footer-Button im FishingKit-Stil
+-- Helper: footer button in FishingKit style
 local function MakeFooterBtn(label, r, g, b)
     local btn = CreateFrame("Button", nil, display)
     btn:SetSize(54, 14)
@@ -164,24 +164,24 @@ local function MakeFooterBtn(label, r, g, b)
     return btn
 end
 
--- Reset-Button (Footer links)
+-- Reset button (footer left)
 local resetBtn = MakeFooterBtn("Reset", D.danger[1], D.danger[2], D.danger[3])
 resetBtn:SetPoint("BOTTOMLEFT", 8, 6)
 resetBtn:SetScript("OnClick", function()
     RaidDeathData = {}
     RDTClassCache = {}
     frame:UpdateDisplay()
-    print("|cff00ff00[RDT]|r Tode zurueckgesetzt.")
+    print("|cff00ff00[RDT]|r Deaths reset.")
 end)
 
--- Post-Button (Footer rechts)
+-- Post button (footer right)
 local postBtn = MakeFooterBtn("Post", D.accent[1], D.accent[2], D.accent[3])
 postBtn:SetPoint("BOTTOMRIGHT", -18, 6)
 postBtn:SetScript("OnClick", function()
     PostDeathsToChat()
 end)
 
--- Session-Navigation (Footer mitte)
+-- Session navigation (footer center)
 local function MakeArrowBtn(label)
     local btn = CreateFrame("Button", nil, display)
     btn:SetSize(16, 14)
@@ -199,7 +199,7 @@ local nextBtn, nextTex = MakeArrowBtn(">")
 prevBtn:SetPoint("BOTTOM", display, "BOTTOM", -10, 6)
 nextBtn:SetPoint("BOTTOM", display, "BOTTOM",  10, 6)
 
--- Resize-Griff (unten rechts)
+-- Resize grip (bottom right)
 local resizeGrip = CreateFrame("Button", nil, display)
 resizeGrip:SetSize(14, 14)
 resizeGrip:SetPoint("BOTTOMRIGHT", -1, 1)
@@ -216,7 +216,7 @@ end)
 -- ----------------------------------------------------------------
 -- Minimap-Button (via LibDBIcon)
 -- ----------------------------------------------------------------
-local minimapBtn  -- wird nach ADDON_LOADED gesetzt
+local minimapBtn  -- set after ADDON_LOADED
 
 local ldbObj = LibStub("LibDataBroker-1-1"):NewDataObject("WowRaidDeathTracker", {
     type = "launcher",
@@ -228,13 +228,13 @@ local ldbObj = LibStub("LibDataBroker-1-1"):NewDataObject("WowRaidDeathTracker",
     end,
     OnTooltipShow = function(tt)
         tt:AddLine("|cff47bef5Raid Death Tracker|r")
-        tt:AddLine("|cff666672[Klick]|r Panel ein/ausblenden", 1, 1, 1)
-        tt:AddLine("|cff666672[Drag] |r Position verschieben",  1, 1, 1)
+        tt:AddLine("|cff666672[Click]|r Toggle panel", 1, 1, 1)
+        tt:AddLine("|cff666672[Drag] |r Move position",  1, 1, 1)
     end,
 })
 
 -- ----------------------------------------------------------------
--- Hilfsfunktion: sortierte Todesliste (desc count, asc name)
+-- Helper: sorted death list (desc count, asc name)
 -- ----------------------------------------------------------------
 local function GetSortedDeaths(data)
     data = data or RaidDeathData
@@ -252,7 +252,7 @@ local function GetSortedDeaths(data)
 end
 
 -- ----------------------------------------------------------------
--- Session-Navigation Logik
+-- Session navigation logic
 -- ----------------------------------------------------------------
 local isTestMode = false
 
@@ -276,7 +276,7 @@ local function UpdateNavUI()
     else
         testBadge:Hide()
     end
-    -- Pfeile
+    -- Arrows
     local canPrev = viewIndex < sessionCount
     local canNext = viewIndex > 0
     prevTex:SetTextColor(canPrev and D.accent[1] or D.label[1],
@@ -311,7 +311,7 @@ end)
 -- ----------------------------------------------------------------
 local RANK_COLORS = {
     "|cffffcc00",  -- #1 Gold
-    "|cffbbbbbb",  -- #2 Silber
+    "|cffbbbbbb",  -- #2 Silver
     "|cffcd7f32",  -- #3 Bronze
     "|cff666672",  -- #4  (D.label)
     "|cff666672",  -- #5  (D.label)
@@ -332,7 +332,7 @@ local CLASS_COLORS = {
 function RaidDeathTrackerFrame:UpdateDisplay()
     local viewData, viewClasses = GetViewData()
     if not viewData or not next(viewData) then
-        contentText:SetText("|cff333344Keine Tode erfasst.|r")
+        contentText:SetText("|cff333344No deaths recorded.|r")
         return
     end
 
@@ -354,11 +354,11 @@ function RaidDeathTrackerFrame:UpdateDisplay()
     local footer = ""
     if extra > 0 then
         footer = string.format(
-            "\n|cff33334a+%d weitere  -  Gesamt: %d|r",
+            "\n|cff33334a+%d more  -  Total: %d|r",
             extra, total
         )
     elseif #sorted > 1 then
-        footer = string.format("\n|cff444455Gesamt: %d Tode|r", total)
+        footer = string.format("\n|cff444455Total: %d deaths|r", total)
     end
 
     local mvc = ""
@@ -374,7 +374,7 @@ end
 -- ----------------------------------------------------------------
 function PostDeathsToChat()
     if not RaidDeathData or next(RaidDeathData) == nil then
-        print("|cff00ff00[RDT]|r Keine Daten zum Posten.")
+        print("|cff00ff00[RDT]|r No data to post.")
         return
     end
 
@@ -387,15 +387,15 @@ function PostDeathsToChat()
     end
     SendChatMessage(string.format("Total: %d deaths", total), "EMOTE")
 
-    print("|cff00ff00[RDT]|r Top 5 im Emote-Channel gepostet.")
+    print("|cff00ff00[RDT]|r Top 5 posted to emote channel.")
 end
 
 -- ----------------------------------------------------------------
--- Gruppen-Sichtbarkeit + Auto-Reset beim Beitreten
+-- Group visibility + auto-reset on join
 -- ----------------------------------------------------------------
 local wasInGroup = false
 
--- Nur Sichtbarkeit aktualisieren, kein Reset (z.B. nach /reload)
+-- Only update visibility, no reset (e.g. after /reload)
 local function UpdateGroupVisibility()
     if testBadge:IsShown() then return end
     local inGroup = IsInRaid() or IsInGroup()
@@ -407,7 +407,7 @@ local MAX_SESSIONS = 5
 
 local function SaveSession()
     if not RaidDeathData or not next(RaidDeathData) then return end
-    local zone = GetRealZoneText() or "Unbekannt"
+    local zone = GetRealZoneText() or "Unknown"
     local date = date("%d.%m")
     local name = zone .. " " .. date
     local data, classes = {}, {}
@@ -417,10 +417,10 @@ local function SaveSession()
     if #RDTSessions > MAX_SESSIONS then
         table.remove(RDTSessions, #RDTSessions)
     end
-    print("|cff00ff00[RDT]|r Session gespeichert: " .. name)
+    print("|cff00ff00[RDT]|r Session saved: " .. name)
 end
 
--- Reset + Anzeigen nur bei echtem Gruppen-Beitritt
+-- Reset + show only on actual group join
 local function OnGroupRosterUpdate()
     if testBadge:IsShown() then return end
     local inGroup = IsInRaid() or IsInGroup()
@@ -429,7 +429,7 @@ local function OnGroupRosterUpdate()
         RDTClassCache = {}
         frame:UpdateDisplay()
         display:Show()
-        print("|cff00ff00[RDT]|r Gruppe beigetreten – Daten zurueckgesetzt.")
+        print("|cff00ff00[RDT]|r Joined group — data reset.")
     elseif not inGroup and wasInGroup then
         SaveSession()
         viewIndex = 0
@@ -442,7 +442,7 @@ local function OnGroupRosterUpdate()
 end
 
 -- ----------------------------------------------------------------
--- Feign-Death-Erkennung: Tod erst nach 3s bestaetigen
+-- Feign Death detection: confirm death after 3s delay
 -- ----------------------------------------------------------------
 local FEIGN_DEATH_DELAY = 3
 local pendingDeaths = {}  -- { [name] = { time = t, token = "raid1"|"party1"|"player" } }
@@ -472,7 +472,7 @@ local function OnDeathCheck(self)
                 RaidDeathData[name] = (RaidDeathData[name] or 0) + 1
                 frame:UpdateDisplay()
             end
-            -- andernfalls: Feign Death — nicht zaehlen
+            -- otherwise: Feign Death — don't count
         end
     end
     if not next(pendingDeaths) then
@@ -491,7 +491,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
             if not RDTConfig then RDTConfig = {} end
             if not RDTClassCache then RDTClassCache = {} end
             if not RDTSessions then RDTSessions = {} end
-            -- Migration: altes minimapAngle-Feld -> minimapPos (LibDBIcon-Format)
+            -- Migration: old minimapAngle field -> minimapPos (LibDBIcon format)
             if not RDTConfig.minimapPos then
                 RDTConfig.minimapPos = RDTConfig.minimapAngle or 220
                 RDTConfig.minimapAngle = nil
@@ -501,7 +501,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
             self:UpdateDisplay()
             UpdateGroupVisibility()
             UpdateNavUI()
-            print("|cff00ff00[RDT]|r v1.3.1 Geladen. /rdt fuer Hilfe")
+            print("|cff00ff00[RDT]|r v1.3.1 loaded. /rdt for help")
         end
 
     elseif event == "PLAYER_ENTERING_WORLD" then
@@ -521,13 +521,13 @@ frame:SetScript("OnEvent", function(self, event, ...)
             and destGUID:sub(1, 6) == "Player"
             and (IsInRaid() or IsInGroup())
         then
-            -- Nur eigene Gruppen-/Raid-Mitglieder zaehlen
+            -- Only count own party/raid members
             local token = FindUnitToken(destName)
             if token then
                 local _, classId = UnitClass(token)
                 if classId then RDTClassCache[destName] = classId end
                 if classId == "HUNTER" then
-                    -- Feign Death moeglich: erst nach 3s bestaetigen
+                    -- Feign Death possible: confirm after 3s delay
                     pendingDeaths[destName] = { time = GetTime(), token = token }
                     deathCheckFrame:SetScript("OnUpdate", OnDeathCheck)
                 else
@@ -540,7 +540,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
 end)
 
 -- ----------------------------------------------------------------
--- Test-Modus
+-- Test mode
 -- ----------------------------------------------------------------
 local TEST_NAMES = {
     "Arthas", "Thrall", "Sylvanas", "Jaina", "Illidan",
@@ -554,7 +554,7 @@ local function ActivateTestMode()
     for _, name in ipairs(TEST_NAMES) do
         RaidDeathData[name] = math.random(1, 15)
     end
-    print("|cff00ff00[RDT]|r Test: " .. #TEST_NAMES .. " Eintraege erstellt.")
+    print("|cff00ff00[RDT]|r Test: " .. #TEST_NAMES .. " entries created.")
     display:Show()
     frame:UpdateDisplay()
     UpdateNavUI()
@@ -566,7 +566,7 @@ local function DeactivateTestMode()
     RaidDeathData = {}
     frame:UpdateDisplay()
     UpdateNavUI()
-    print("|cff00ff00[RDT]|r Testmodus beendet.")
+    print("|cff00ff00[RDT]|r Test mode ended.")
 end
 
 -- ----------------------------------------------------------------
@@ -582,17 +582,17 @@ SlashCmdList["RAIDDEATHTRACKER"] = function(msg)
         RaidDeathData = {}
         RDTClassCache = {}
         frame:UpdateDisplay()
-        print("|cff00ff00[RDT]|r Tode zurueckgesetzt.")
+        print("|cff00ff00[RDT]|r Deaths reset.")
     elseif msg == "post"       then PostDeathsToChat()
     elseif msg == "sessions"   then
         if not RDTSessions or #RDTSessions == 0 then
-            print("|cff00ff00[RDT]|r Keine gespeicherten Sessions.")
+            print("|cff00ff00[RDT]|r No saved sessions.")
         else
-            print("|cff00ff00[RDT]|r Gespeicherte Sessions:")
+            print("|cff00ff00[RDT]|r Saved sessions:")
             for i, s in ipairs(RDTSessions) do
                 local count = 0
                 for _ in pairs(s.data) do count = count + 1 end
-                print(string.format("  %d. %s (%d Spieler)", i, s.name, count))
+                print(string.format("  %d. %s (%d players)", i, s.name, count))
             end
         end
     elseif msg == "test"       then ActivateTestMode()
@@ -601,19 +601,19 @@ SlashCmdList["RAIDDEATHTRACKER"] = function(msg)
         local count = 0
         if RaidDeathData then for _ in pairs(RaidDeathData) do count = count + 1 end end
         print("|cff00ff00[RDT]|r Debug:")
-        print("  Eintraege: " .. count)
-        print("  Panel sichtbar: " .. tostring(display:IsShown()))
-        print("  Panel groesse: " .. math.floor(display:GetWidth()) .. "x" .. math.floor(display:GetHeight()))
-        print("  Minimap-Winkel: " .. tostring(RDTConfig and RDTConfig.minimapPos))
-        print("  Minimap-Btn groesse: " .. minimapBtn:GetWidth() .. "x" .. minimapBtn:GetHeight())
+        print("  Entries: " .. count)
+        print("  Panel visible: " .. tostring(display:IsShown()))
+        print("  Panel size: " .. math.floor(display:GetWidth()) .. "x" .. math.floor(display:GetHeight()))
+        print("  Minimap angle: " .. tostring(RDTConfig and RDTConfig.minimapPos))
+        print("  Minimap btn size: " .. minimapBtn:GetWidth() .. "x" .. minimapBtn:GetHeight())
     else
-        print("|cff00ff00[RDT]|r Befehle:")
-        print("  /rdt            - Fenster ein/ausblenden")
-        print("  /rdt reset      - Alle Tode zuruecksetzen")
-        print("  /rdt post          - Top 5 im Emote-Channel posten")
-        print("  /rdt sessions      - Gespeicherte Sessions anzeigen")
-        print("  /rdt test          - Testmodus (Dummy-Daten)")
-        print("  /rdt test clear    - Testmodus beenden")
-        print("  /rdt debug         - Debug-Informationen anzeigen")
+        print("|cff00ff00[RDT]|r Commands:")
+        print("  /rdt            - Toggle window")
+        print("  /rdt reset      - Reset all deaths")
+        print("  /rdt post          - Post top 5 to emote channel")
+        print("  /rdt sessions      - Show saved sessions")
+        print("  /rdt test          - Test mode (dummy data)")
+        print("  /rdt test clear    - End test mode")
+        print("  /rdt debug         - Show debug information")
     end
 end

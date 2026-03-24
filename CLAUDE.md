@@ -1,28 +1,28 @@
-# WowRaidDeathTracker – Projekt-Kontext für Claude
+# WowRaidDeathTracker – Project Context for Claude
 
-## Umgebung
+## Environment
 - World of Warcraft: The Burning Crusade Classic Anniversary — Patch 2.5.5
-- Interface-Version: `20505`
-- Lua 5.1 (WoW-Sandbox — kein io, os, require, debug)
+- Interface version: `20505`
+- Lua 5.1 (WoW sandbox — no io, os, require, debug)
 
-## WoW API Einschränkungen
-- Kein `BackdropTemplate` / `SetBackdrop` — stattdessen manuelle Pixel-Borders via `AddPixelBorder()`
-- Resize: defensive Prüfung `SetResizeBounds` vs. `SetResizable`/`SetMinResize`
-- Kein `C_*` Namespace (C_Timer als nicht vorhanden behandeln)
+## WoW API Restrictions
+- No `BackdropTemplate` / `SetBackdrop` — use manual pixel borders via `AddPixelBorder()` instead
+- Resize: defensive check `SetResizeBounds` vs. `SetResizable`/`SetMinResize`
+- No `C_*` namespace (treat C_Timer as unavailable)
 - CombatLog: `CombatLogGetCurrentEventInfo()`
-- Das Pipe-Zeichen `|` in `FontString:SetText()` ist ein WoW-Escape — nie als Literal verwenden
-- `math.atan2` (Lua 5.1 Stil)
+- The pipe character `|` in `FontString:SetText()` is a WoW escape — never use as literal
+- `math.atan2` (Lua 5.1 style)
 
-## Bibliotheken
-- LibStub (eingebettet in `libs/LibDBIcon-1-0.lua`)
-- LibDataBroker-1-1 (eingebettet, minimaler Shim)
-- LibDBIcon-1.0 (eingebettet, eigene Implementierung)
+## Libraries
+- LibStub (embedded in `libs/LibDBIcon-1-0.lua`)
+- LibDataBroker-1-1 (embedded, minimal shim)
+- LibDBIcon-1.0 (embedded, custom implementation)
 
-## Dateistruktur
+## File Structure
 ```
 WowRaidDeathTracker/
   libs/
-    LibDBIcon-1-0.lua   -- LibStub + LDB + LibDBIcon (nicht editieren)
+    LibDBIcon-1-0.lua   -- LibStub + LDB + LibDBIcon (do not edit)
   WowRaidDeathTracker.toc
   WowRaidDeathTracker.lua
   CHANGELOG.md
@@ -30,84 +30,84 @@ WowRaidDeathTracker/
   CLAUDE.md
 ```
 
-## Versionierung
+## Versioning
 
 - Schema: **Semantic Versioning** (`MAJOR.MINOR.PATCH`)
-- Version steht in `WowRaidDeathTracker.toc` (`## Version`) und im Lua-Header-Kommentar
-- Releases werden als **Git-Tags** gesetzt: `git tag v1.3.0`
-- Jeder Release erhält einen Eintrag in `CHANGELOG.md` (Format: Keep a Changelog)
+- Version is in `WowRaidDeathTracker.toc` (`## Version`) and in the Lua header comment
+- Releases are set as **Git tags**: `git tag v1.3.0`
+- Each release gets an entry in `CHANGELOG.md` (format: Keep a Changelog)
 
-| Bump | Wann |
+| Bump | When |
 |---|---|
-| `PATCH` | Bugfixes ohne neue Features |
-| `MINOR` | Neue Features, rückwärtskompatibel |
-| `MAJOR` | Brechende Änderungen (z.B. SavedVariables-Format) |
+| `PATCH` | Bug fixes without new features |
+| `MINOR` | New features, backwards compatible |
+| `MAJOR` | Breaking changes (e.g. SavedVariables format) |
 
-### Release-Checkliste
+### Release Checklist
 
-Ein Release besteht aus folgenden Schritten — immer in dieser Reihenfolge:
+A release consists of the following steps — always in this order:
 
-1. `git log vX.Y.Z..HEAD --oneline` — Commits seit letztem Release sichten
-2. Version bestimmen (PATCH / MINOR / MAJOR)
-3. `CHANGELOG.md` — neuen Abschnitt `## [X.Y.Z] - YYYY-MM-DD` mit Added / Changed / Fixed eintragen
-4. `WowRaidDeathTracker.toc` — `## Version: X.Y.Z` aktualisieren
-5. `WowRaidDeathTracker.lua` — Header-Kommentar `v X.Y.Z` und Lade-Print aktualisieren
-6. `README.md` — Versionsbadge aktualisieren falls vorhanden
+1. `git log vX.Y.Z..HEAD --oneline` — review commits since last release
+2. Determine version (PATCH / MINOR / MAJOR)
+3. `CHANGELOG.md` — add new section `## [X.Y.Z] - YYYY-MM-DD` with Added / Changed / Fixed
+4. `WowRaidDeathTracker.toc` — update `## Version: X.Y.Z`
+5. `WowRaidDeathTracker.lua` — update header comment `v X.Y.Z` and load print
+6. `README.md` — update version badge if present
 7. Commit: `chore: release vX.Y.Z`
-8. Tag setzen: `git tag vX.Y.Z`
+8. Set tag: `git tag vX.Y.Z`
 
 ## SavedVariables
 - `RaidDeathData` — table: `{ [playerName] = count }`
 - `RDTConfig` — table: `{ minimapPos = <angle> }`
 
-## Commit-Anforderungen
+## Commit Requirements
 
-Commits müssen dem **Conventional Commits**-Standard folgen:
+Commits must follow the **Conventional Commits** standard:
 
 ```
-<type>(<scope>): <beschreibung>
+<type>(<scope>): <description>
 
-<body>  ← optional, erklärt das "warum"
+<body>  ← optional, explains the "why"
 
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 ```
 
-### Erlaubte Types
-| Type | Wann |
+### Allowed Types
+| Type | When |
 |---|---|
-| `feat` | Neues Feature |
-| `fix` | Bugfix |
-| `refactor` | Umstrukturierung ohne Verhaltensänderung |
-| `docs` | Nur Dokumentation |
-| `chore` | Build, TOC, Konfiguration |
+| `feat` | New feature |
+| `fix` | Bug fix |
+| `refactor` | Restructuring without behavior change |
+| `docs` | Documentation only |
+| `chore` | Build, TOC, configuration |
 
-### Regeln
-- Beschreibung auf **Englisch**, Kleinschreibung, kein Punkt am Ende
-- Body auf Deutsch oder Englisch, erklärt konkret was und warum
-- Jede inhaltlich getrennte Änderung → eigener Commit
-- Immer `Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>` anhängen
-- Nie `--no-verify` oder force-push ohne explizite Aufforderung
-- Nutze Conventional Commits Regeln
+### Rules
+- Description in **English**, lowercase, no period at the end
+- Body in English, explains concretely what and why
+- Each logically separate change → its own commit
+- Always append `Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>`
+- Never use `--no-verify` or force-push without explicit request
+- Follow Conventional Commits rules
 
-## Code-Review-Regeln
+## Code Review Rules
 
-Bei jedem Review auf folgende Punkte achten:
+Check the following points during every review:
 
 ### Bugs
-- Debug-Artefakte (`print`, `UIErrorsFrame:AddMessage`) die in Produktion landen
-- Veraltete Variablennamen nach Refactorings (z.B. umbenannte SavedVariable-Felder)
+- Debug artifacts (`print`, `UIErrorsFrame:AddMessage`) that end up in production
+- Outdated variable names after refactorings (e.g. renamed SavedVariable fields)
 
-### Wartbarkeit
-- Magic Numbers — benannte Konstanten verwenden (z.B. `TOP_N` statt `5`)
-- Duplizierter Code — gemeinsame Logik in Hilfsfunktionen extrahieren, wenn sie an mehreren Stellen identisch vorkommt
+### Maintainability
+- Magic numbers — use named constants (e.g. `TOP_N` instead of `5`)
+- Duplicated code — extract shared logic into helper functions when identical in multiple places
 
-### Effizienz
-- Unnötige Schleifen wenn das Ergebnis bereits bekannt ist (z.B. `#table` statt manuelles Zählen)
+### Efficiency
+- Unnecessary loops when the result is already known (e.g. `#table` instead of manual counting)
 
-### Konsistenz
-- Sort-Stabilität: gleiche Sortierpredikate überall wo dieselbe Datenstruktur sortiert wird
-- Einheitliche Nutzung von definierten Konstanten im gesamten File
+### Consistency
+- Sort stability: same sort predicates everywhere the same data structure is sorted
+- Uniform usage of defined constants throughout the file
 
-### WoW-spezifisch
-- `SendChatMessage` akzeptiert keine WoW-Color-Escapes (`|c`, `|r`) — nie Pipe-Sequenzen in Chat-Nachrichten verwenden
-- FontString mit zwei Ankerpunkten (TOPLEFT + BOTTOMRIGHT) verhindert Mehrzeiligkeit in TBC Classic — stattdessen `SetWidth()` + einzelnen Ankerpunkt
+### WoW-specific
+- `SendChatMessage` does not accept WoW color escapes (`|c`, `|r`) — never use pipe sequences in chat messages
+- FontString with two anchor points (TOPLEFT + BOTTOMRIGHT) prevents multiline in TBC Classic — use `SetWidth()` + single anchor instead
