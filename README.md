@@ -22,6 +22,10 @@ Tracks player deaths in party and raid, displays a top-5 ranking, and can post r
 | `/rdt test` | Enable test mode with dummy data |
 | `/rdt test clear` | Exit test mode |
 
+## Notes
+
+- Session history is saved automatically when you **leave the group**. If you log off while still in a raid, the current session will not be saved to history (but live data persists across reloads).
+
 ## Download
 
 [CurseForge](https://www.curseforge.com/wow/addons/wow-raid-death-tracker)
