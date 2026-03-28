@@ -7,6 +7,17 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.4.0] - 2026-03-28
+
+### Added
+- Channel selection popup on Post button (Say, Yell, Party, Raid, Emote)
+- `/rdt post [channel]` slash command argument for channel selection
+
+### Changed
+- Simplified README to match common WoW addon style
+
+---
+
 ## [1.3.2] - 2026-03-24
 
 ### Changed

@@ -1,5 +1,5 @@
 -- ============================================================
---  WowRaidDeathTracker  v1.3.2
+--  WowRaidDeathTracker  v1.4.0
 --  TBC Classic Anniversary (2.5.5)
 --  Tracks player deaths — solo, in party and raid.
 -- ============================================================
@@ -554,7 +554,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
             self:UpdateDisplay()
             UpdateGroupVisibility()
             UpdateNavUI()
-            print("|cff00ff00[RDT]|r v1.3.2 loaded. /rdt for help")
+            print("|cff00ff00[RDT]|r v1.4.0 loaded. /rdt for help")
         end
 
     elseif event == "PLAYER_ENTERING_WORLD" then
