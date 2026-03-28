@@ -174,11 +174,61 @@ resetBtn:SetScript("OnClick", function()
     print("|cff00ff00[RDT]|r Deaths reset.")
 end)
 
+-- Post channel menu
+local CHAT_CHANNELS = {
+    { label = "Say",    channel = "SAY" },
+    { label = "Yell",   channel = "YELL" },
+    { label = "Party",  channel = "PARTY" },
+    { label = "Raid",   channel = "RAID" },
+    { label = "Emote",  channel = "EMOTE" },
+}
+
+local channelMenu = CreateFrame("Frame", nil, display)
+channelMenu:SetSize(60, #CHAT_CHANNELS * 16 + 4)
+channelMenu:Hide()
+
+local menuBg = channelMenu:CreateTexture(nil, "BACKGROUND")
+menuBg:SetAllPoints()
+menuBg:SetColorTexture(D.bg[1], D.bg[2], D.bg[3], 0.95)
+AddPixelBorder(channelMenu, D.border[1], D.border[2], D.border[3], D.borA)
+
+for i, entry in ipairs(CHAT_CHANNELS) do
+    local item = CreateFrame("Button", nil, channelMenu)
+    item:SetSize(56, 14)
+    item:SetPoint("TOP", 0, -2 - (i - 1) * 16)
+    local itemText = item:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    itemText:SetPoint("CENTER", 0, 0)
+    itemText:SetText(entry.label)
+    itemText:SetTextColor(D.label[1], D.label[2], D.label[3])
+    item:SetScript("OnEnter", function() itemText:SetTextColor(D.accent[1], D.accent[2], D.accent[3]) end)
+    item:SetScript("OnLeave", function() itemText:SetTextColor(D.label[1], D.label[2], D.label[3]) end)
+    item:SetScript("OnClick", function()
+        channelMenu:Hide()
+        PostDeathsToChat(entry.channel, entry.label)
+    end)
+end
+
+channelMenu:SetScript("OnShow", function() channelMenu:SetFrameStrata("TOOLTIP") end)
+channelMenu:EnableMouse(true)
+
+-- Close menu when clicking elsewhere
+channelMenu:SetScript("OnUpdate", function(self)
+    if not MouseIsOver(self) and IsMouseButtonDown("LeftButton") then
+        self:Hide()
+    end
+end)
+
 -- Post button (footer right)
 local postBtn = MakeFooterBtn("Post", D.accent[1], D.accent[2], D.accent[3])
 postBtn:SetPoint("BOTTOMRIGHT", -18, 6)
 postBtn:SetScript("OnClick", function()
-    PostDeathsToChat()
+    if channelMenu:IsShown() then
+        channelMenu:Hide()
+    else
+        channelMenu:ClearAllPoints()
+        channelMenu:SetPoint("BOTTOM", postBtn, "TOP", 0, 4)
+        channelMenu:Show()
+    end
 end)
 
 -- Session navigation (footer center)
@@ -372,22 +422,25 @@ end
 -- ----------------------------------------------------------------
 -- Post Top 5 in Raid/Party
 -- ----------------------------------------------------------------
-function PostDeathsToChat()
+function PostDeathsToChat(chatType, chatLabel)
     if not RaidDeathData or next(RaidDeathData) == nil then
         print("|cff00ff00[RDT]|r No data to post.")
         return
     end
 
+    chatType  = chatType  or "EMOTE"
+    chatLabel = chatLabel or chatType
+
     local sorted, total = GetSortedDeaths()
 
-    SendChatMessage("( --< Raid Death Tracker >-- )", "EMOTE")
+    SendChatMessage("( --< Raid Death Tracker >-- )", chatType)
     for i = 1, math.min(TOP_N, #sorted) do
         local e = sorted[i]
-        SendChatMessage(string.format("#%d  %s  -- %dx", i, e.name, e.count), "EMOTE")
+        SendChatMessage(string.format("#%d  %s  -- %dx", i, e.name, e.count), chatType)
     end
-    SendChatMessage(string.format("Total: %d deaths", total), "EMOTE")
+    SendChatMessage(string.format("Total: %d deaths", total), chatType)
 
-    print("|cff00ff00[RDT]|r Top 5 posted to emote channel.")
+    print("|cff00ff00[RDT]|r Top 5 posted to " .. chatLabel .. ".")
 end
 
 -- ----------------------------------------------------------------
@@ -583,7 +636,15 @@ SlashCmdList["RAIDDEATHTRACKER"] = function(msg)
         RDTClassCache = {}
         frame:UpdateDisplay()
         print("|cff00ff00[RDT]|r Deaths reset.")
-    elseif msg == "post"       then PostDeathsToChat()
+    elseif msg:sub(1, 4) == "post" then
+        local arg = msg:sub(6):match("^%s*(.-)%s*$") or ""
+        local channelMap = { say = "SAY", yell = "YELL", party = "PARTY", raid = "RAID", emote = "EMOTE" }
+        local ch = channelMap[arg]
+        if arg ~= "" and not ch then
+            print("|cff00ff00[RDT]|r Unknown channel. Use: say, yell, party, raid, emote")
+            return
+        end
+        PostDeathsToChat(ch, arg ~= "" and arg or nil)
     elseif msg == "sessions"   then
         if not RDTSessions or #RDTSessions == 0 then
             print("|cff00ff00[RDT]|r No saved sessions.")
@@ -610,7 +671,7 @@ SlashCmdList["RAIDDEATHTRACKER"] = function(msg)
         print("|cff00ff00[RDT]|r Commands:")
         print("  /rdt            - Toggle window")
         print("  /rdt reset      - Reset all deaths")
-        print("  /rdt post          - Post top 5 to emote channel")
+        print("  /rdt post [channel]   - Post top 5 (say/yell/party/raid/emote)")
         print("  /rdt sessions      - Show saved sessions")
         print("  /rdt test          - Test mode (dummy data)")
         print("  /rdt test clear    - End test mode")
