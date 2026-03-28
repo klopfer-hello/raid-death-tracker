@@ -7,6 +7,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.4.1] - 2026-03-28
+
+### Added
+- Documented session save behavior (only on group leave) in README
+
+### Fixed
+- Added missing `Author` field in TOC
+
+---
+
 ## [1.4.0] - 2026-03-28
 
 ### Added
