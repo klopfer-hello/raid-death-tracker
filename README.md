@@ -25,6 +25,7 @@ Tracks player deaths in party and raid, displays a top-5 ranking, and can post r
 ## Notes
 
 - Session history is saved automatically when you **leave the group**. If you log off while still in a raid, the current session will not be saved to history (but live data persists across reloads).
+- Deaths are tracked via the combat log, which only covers events within ~50 yards. If you are dead and the group moves away from your corpse, their deaths may not be recorded.
 
 ## Download
 
