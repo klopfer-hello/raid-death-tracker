@@ -7,6 +7,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.5.0] - 2026-04-19
+
+### Added
+- Panel is now actually resizable via the bottom-right grip; chosen size is persisted in `RDTConfig` and restored on reload (clamped to 220x150 – 500x450)
+
+### Changed
+- Renamed addon files from `WowRaidDeathTracker.lua`/`.toc` to `RaidDeathTracker.lua`/`.toc` to match the addon folder name; internal addon name and LibDBIcon registration key updated accordingly
+
+### Fixed
+- `SetResizable(true)` was only called on the old bounds-API path, so `StartSizing()` silently failed when `SetResizeBounds` was available — now always enabled
+
+---
+
 ## [1.4.1] - 2026-03-28
 
 ### Added

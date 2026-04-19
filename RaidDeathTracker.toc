@@ -2,7 +2,7 @@
 ## Title: Raid Death Tracker
 ## Notes: Tracks player deaths in raid
 ## Author: lanus1337
-## Version: 1.4.1
+## Version: 1.5.0
 ## IconTexture: Interface\Icons\Spell_Shadow_DeathCoil
 ## Category: Hall of Shame
 ## SavedVariables: RaidDeathData RDTConfig RDTClassCache RDTSessions
