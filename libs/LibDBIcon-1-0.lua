@@ -1,6 +1,6 @@
 -- ============================================================
 --  Embedded LibStub + LibDataBroker-1-1 shim + LibDBIcon-1.0
---  Minimal implementation fuer WowRaidDeathTracker
+--  Minimal implementation fuer RaidDeathTracker
 --  LibStub: public domain (Ace community)
 -- ============================================================
 

@@ -8,4 +8,4 @@
 ## SavedVariables: RaidDeathData RDTConfig RDTClassCache RDTSessions
 
 libs\LibDBIcon-1-0.lua
-WowRaidDeathTracker.lua
+RaidDeathTracker.lua

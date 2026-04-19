@@ -1,10 +1,10 @@
 -- ============================================================
---  WowRaidDeathTracker  v1.4.1
+--  RaidDeathTracker  v1.4.1
 --  TBC Classic Anniversary (2.5.5)
 --  Tracks player deaths — solo, in party and raid.
 -- ============================================================
 
-local ADDON_NAME = "WowRaidDeathTracker"
+local ADDON_NAME = "RaidDeathTracker"
 local TOP_N      = 5
 local viewIndex  = 0   -- 0 = live, 1..N = Session
 
@@ -268,7 +268,7 @@ end)
 -- ----------------------------------------------------------------
 local minimapBtn  -- set after ADDON_LOADED
 
-local ldbObj = LibStub("LibDataBroker-1-1"):NewDataObject("WowRaidDeathTracker", {
+local ldbObj = LibStub("LibDataBroker-1-1"):NewDataObject("RaidDeathTracker", {
     type = "launcher",
     icon = "Interface\\Icons\\Spell_Shadow_DeathCoil",
     OnClick = function(self, btn)
@@ -549,8 +549,8 @@ frame:SetScript("OnEvent", function(self, event, ...)
                 RDTConfig.minimapPos = RDTConfig.minimapAngle or 220
                 RDTConfig.minimapAngle = nil
             end
-            LibStub("LibDBIcon-1.0"):Register("WowRaidDeathTracker", ldbObj, RDTConfig)
-            minimapBtn = LibStub("LibDBIcon-1.0"):GetMinimapButton("WowRaidDeathTracker")
+            LibStub("LibDBIcon-1.0"):Register("RaidDeathTracker", ldbObj, RDTConfig)
+            minimapBtn = LibStub("LibDBIcon-1.0"):GetMinimapButton("RaidDeathTracker")
             self:UpdateDisplay()
             UpdateGroupVisibility()
             UpdateNavUI()

@@ -1,4 +1,4 @@
-# WowRaidDeathTracker
+# RaidDeathTracker
 
 Tracks player deaths in party and raid, displays a top-5 ranking, and can post results to group chat.
 

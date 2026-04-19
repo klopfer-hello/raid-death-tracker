@@ -1,4 +1,4 @@
-# WowRaidDeathTracker – Project Context for Claude
+# RaidDeathTracker – Project Context for Claude
 
 ## Environment
 - World of Warcraft: The Burning Crusade Classic Anniversary — Patch 2.5.5
@@ -20,11 +20,11 @@
 
 ## File Structure
 ```
-WowRaidDeathTracker/
+RaidDeathTracker/
   libs/
     LibDBIcon-1-0.lua   -- LibStub + LDB + LibDBIcon (do not edit)
-  WowRaidDeathTracker.toc
-  WowRaidDeathTracker.lua
+  RaidDeathTracker.toc
+  RaidDeathTracker.lua
   CHANGELOG.md
   README.md
   CLAUDE.md
@@ -33,7 +33,7 @@ WowRaidDeathTracker/
 ## Versioning
 
 - Schema: **Semantic Versioning** (`MAJOR.MINOR.PATCH`)
-- Version is in `WowRaidDeathTracker.toc` (`## Version`) and in the Lua header comment
+- Version is in `RaidDeathTracker.toc` (`## Version`) and in the Lua header comment
 - Releases are set as **Git tags**: `git tag v1.3.0`
 - Each release gets an entry in `CHANGELOG.md` (format: Keep a Changelog)
 
@@ -50,8 +50,8 @@ A release consists of the following steps — always in this order:
 1. `git log vX.Y.Z..HEAD --oneline` — review commits since last release
 2. Determine version (PATCH / MINOR / MAJOR)
 3. `CHANGELOG.md` — add new section `## [X.Y.Z] - YYYY-MM-DD` with Added / Changed / Fixed
-4. `WowRaidDeathTracker.toc` — update `## Version: X.Y.Z`
-5. `WowRaidDeathTracker.lua` — update header comment `v X.Y.Z` and load print
+4. `RaidDeathTracker.toc` — update `## Version: X.Y.Z`
+5. `RaidDeathTracker.lua` — update header comment `v X.Y.Z` and load print
 6. `README.md` — update version badge if present
 7. Commit: `chore: release vX.Y.Z`
 8. Set tag: `git tag vX.Y.Z`

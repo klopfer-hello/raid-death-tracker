@@ -1,4 +1,4 @@
-package-as: WowRaidDeathTracker
+package-as: RaidDeathTracker
 
 enable-nolib-creation: no
 
