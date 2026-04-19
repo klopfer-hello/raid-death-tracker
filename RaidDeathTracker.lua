@@ -78,12 +78,16 @@ display:SetScript("OnDragStop",  display.StopMovingOrSizing)
 display:SetClampedToScreen(true)
 display:Hide()  -- default: only visible in group/raid
 
--- Resize: new API (SetResizeBounds) or old (SetResizable + SetMinResize)
+-- Resize: SetResizable() is always required for StartSizing to work.
+-- Bounds API differs: new SetResizeBounds() vs. old SetMinResize/SetMaxResize.
+local MIN_W, MIN_H = 220, 150
+local MAX_W, MAX_H = 500, 450
+display:SetResizable(true)
 if display.SetResizeBounds then
-    display:SetResizeBounds(220, 150)
-elseif display.SetResizable then
-    display:SetResizable(true)
-    if display.SetMinResize then display:SetMinResize(220, 150) end
+    display:SetResizeBounds(MIN_W, MIN_H, MAX_W, MAX_H)
+else
+    if display.SetMinResize then display:SetMinResize(MIN_W, MIN_H) end
+    if display.SetMaxResize then display:SetMaxResize(MAX_W, MAX_H) end
 end
 
 -- Background
@@ -261,6 +265,15 @@ resizeGrip:SetScript("OnMouseDown", function(_, btn)
 end)
 resizeGrip:SetScript("OnMouseUp", function()
     display:StopMovingOrSizing()
+    if RDTConfig then
+        RDTConfig.width  = display:GetWidth()
+        RDTConfig.height = display:GetHeight()
+    end
+end)
+
+-- Keep content width + footer layout in sync with frame size
+display:SetScript("OnSizeChanged", function(self, width, height)
+    contentText:SetWidth(width - 20)
 end)
 
 -- ----------------------------------------------------------------
@@ -548,6 +561,12 @@ frame:SetScript("OnEvent", function(self, event, ...)
             if not RDTConfig.minimapPos then
                 RDTConfig.minimapPos = RDTConfig.minimapAngle or 220
                 RDTConfig.minimapAngle = nil
+            end
+            -- Restore persisted panel size (clamped to bounds)
+            if RDTConfig.width and RDTConfig.height then
+                local w = math.max(MIN_W, math.min(MAX_W, RDTConfig.width))
+                local h = math.max(MIN_H, math.min(MAX_H, RDTConfig.height))
+                display:SetSize(w, h)
             end
             LibStub("LibDBIcon-1.0"):Register("RaidDeathTracker", ldbObj, RDTConfig)
             minimapBtn = LibStub("LibDBIcon-1.0"):GetMinimapButton("RaidDeathTracker")
