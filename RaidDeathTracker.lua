@@ -508,6 +508,13 @@ local function OnGroupRosterUpdate()
 end
 
 -- ----------------------------------------------------------------
+-- Death debounce: Priest Spirit of Redemption fires UNIT_DIED twice
+-- (initial death + 15s ghost form expiry) — suppress the second.
+-- ----------------------------------------------------------------
+local DEATH_DEBOUNCE = 20
+local lastDeathTime = {}
+
+-- ----------------------------------------------------------------
 -- Feign Death detection: confirm death after 3s delay
 -- ----------------------------------------------------------------
 local FEIGN_DEATH_DELAY = 3
@@ -603,6 +610,12 @@ frame:SetScript("OnEvent", function(self, event, ...)
                     pendingDeaths[destName] = { time = GetTime(), token = token }
                     deathCheckFrame:SetScript("OnUpdate", OnDeathCheck)
                 else
+                    -- Suppress duplicate UNIT_DIED (Priest Spirit of Redemption fires twice).
+                    local now = GetTime()
+                    if lastDeathTime[destName] and now - lastDeathTime[destName] < DEATH_DEBOUNCE then
+                        return
+                    end
+                    lastDeathTime[destName] = now
                     RaidDeathData[destName] = (RaidDeathData[destName] or 0) + 1
                     frame:UpdateDisplay()
                 end
