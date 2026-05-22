@@ -436,7 +436,8 @@ end
 -- Post Top 5 in Raid/Party
 -- ----------------------------------------------------------------
 function PostDeathsToChat(chatType, chatLabel)
-    if not RaidDeathData or next(RaidDeathData) == nil then
+    local viewData = GetViewData()
+    if not viewData or next(viewData) == nil then
         print("|cff00ff00[RDT]|r No data to post.")
         return
     end
@@ -444,9 +445,14 @@ function PostDeathsToChat(chatType, chatLabel)
     chatType  = chatType  or "EMOTE"
     chatLabel = chatLabel or chatType
 
-    local sorted, total = GetSortedDeaths()
+    local sorted, total = GetSortedDeaths(viewData)
 
-    SendChatMessage("( --< Raid Death Tracker >-- )", chatType)
+    local header = "( --< Raid Death Tracker >-- )"
+    if viewIndex > 0 and RDTSessions and RDTSessions[viewIndex] then
+        header = "( --< Raid Death Tracker - " .. RDTSessions[viewIndex].name .. " >-- )"
+    end
+
+    SendChatMessage(header, chatType)
     for i = 1, math.min(TOP_N, #sorted) do
         local e = sorted[i]
         SendChatMessage(string.format("#%d  %s  -- %dx", i, e.name, e.count), chatType)
