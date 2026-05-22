@@ -7,6 +7,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.6.0] - 2026-05-22
+
+### Added
+- Post button now uses the currently viewed session — when browsing a saved session via the navigation arrows, posting sends that session's top 5. The chat header includes the session name so readers see which raid is being reported.
+
+### Fixed
+- Holy priests with Spirit of Redemption were counted twice — once on the initial death and once when the 15s ghost form expired. Duplicate `UNIT_DIED` events for the same player within 20s are now ignored on the non-hunter death path (Feign Death handling is unchanged).
+
+---
+
 ## [1.5.0] - 2026-04-19
 
 ### Added
