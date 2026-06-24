@@ -7,6 +7,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.7.0] - 2026-06-24
+
+### Added
+- `/rdt list [channel]` — shows the full group roster including members with 0 deaths; optionally posts it to say/yell/party/raid/emote
+- `/rdt zero [channel]` — shows only group members with 0 deaths (the survivors); optionally posts it to a channel
+
+Both commands derive 0-death members from the current group roster, since per-session rosters are not stored.
+
+---
+
 ## [1.6.0] - 2026-05-22
 
 ### Added
