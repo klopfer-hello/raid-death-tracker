@@ -433,6 +433,115 @@ function RaidDeathTrackerFrame:UpdateDisplay()
 end
 
 -- ----------------------------------------------------------------
+-- Helper: current group roster names (raid or party, incl. self)
+-- ----------------------------------------------------------------
+local function GetGroupRoster()
+    local names = {}
+    if IsInRaid() then
+        for i = 1, 40 do
+            local token = "raid" .. i
+            if not UnitExists(token) then break end
+            local n = UnitName(token)
+            if n then names[n] = true end
+        end
+    elseif IsInGroup() then
+        names[UnitName("player")] = true
+        for i = 1, 4 do
+            local token = "party" .. i
+            if not UnitExists(token) then break end
+            local n = UnitName(token)
+            if n then names[n] = true end
+        end
+    end
+    return names
+end
+
+-- ----------------------------------------------------------------
+-- Print full roster (incl. 0 deaths) to the chat frame
+-- ----------------------------------------------------------------
+local function PrintFullList(chatType, chatLabel)
+    local viewData, viewClasses = GetViewData()
+    local roster = GetGroupRoster()
+
+    -- Merge roster with recorded data so 0-death members appear too.
+    local merged = {}
+    for name in pairs(roster) do merged[name] = viewData[name] or 0 end
+    for name, count in pairs(viewData) do merged[name] = count end
+
+    local sorted, total = GetSortedDeaths(merged)
+    if #sorted == 0 then
+        print("|cff00ff00[RDT]|r No raid members found.")
+        return
+    end
+
+    if chatType then
+        -- Post to chat: no color escapes allowed in SendChatMessage.
+        local header = "( --< Raid Death Tracker - Full List >-- )"
+        if viewIndex > 0 and RDTSessions and RDTSessions[viewIndex] then
+            header = "( --< Raid Death Tracker - " .. RDTSessions[viewIndex].name .. " >-- )"
+        end
+        SendChatMessage(header, chatType)
+        for i, e in ipairs(sorted) do
+            SendChatMessage(string.format("#%d  %s  -- %dx", i, e.name, e.count), chatType)
+        end
+        SendChatMessage(string.format("Total: %d deaths", total), chatType)
+        print("|cff00ff00[RDT]|r Full list posted to " .. (chatLabel or chatType) .. ".")
+        return
+    end
+
+    print("|cff00ff00[RDT]|r Full list (" .. #sorted .. " players, " .. total .. " deaths):")
+    for i, e in ipairs(sorted) do
+        local classId   = viewClasses and viewClasses[e.name]
+        local nameColor = CLASS_COLORS[classId] or "|cffd1d6e1"
+        print(string.format("  %d. %s%s|r - |cff666672%dx|r", i, nameColor, e.name, e.count))
+    end
+end
+
+-- ----------------------------------------------------------------
+-- Print only group members with 0 deaths (the "survivors")
+-- ----------------------------------------------------------------
+local function PrintZeroDeaths(chatType, chatLabel)
+    local viewData, viewClasses = GetViewData()
+    local roster = GetGroupRoster()
+
+    if not next(roster) then
+        print("|cff00ff00[RDT]|r No raid members found.")
+        return
+    end
+
+    -- Collect group members without recorded deaths, sorted by name.
+    local survivors = {}
+    for name in pairs(roster) do
+        if not viewData[name] or viewData[name] == 0 then
+            table.insert(survivors, name)
+        end
+    end
+    table.sort(survivors)
+
+    if #survivors == 0 then
+        print("|cff00ff00[RDT]|r Everyone has died at least once.")
+        return
+    end
+
+    if chatType then
+        -- Post to chat: no color escapes allowed in SendChatMessage.
+        SendChatMessage("( --< Raid Death Tracker - No Deaths >-- )", chatType)
+        for _, name in ipairs(survivors) do
+            SendChatMessage(name .. "  -- 0x", chatType)
+        end
+        print("|cff00ff00[RDT]|r Survivors posted to " .. (chatLabel or chatType) .. ".")
+        return
+    end
+
+    print("|cff00ff00[RDT]|r No deaths (" .. #survivors .. " players):")
+    for _, name in ipairs(survivors) do
+        local classId   = viewClasses and viewClasses[name]
+        local nameColor = CLASS_COLORS[classId] or "|cffd1d6e1"
+        print(string.format("  %s%s|r", nameColor, name))
+    end
+end
+
+-- ----------------------------------------------------------------
 -- Post Top 5 in Raid/Party
 -- ----------------------------------------------------------------
 function PostDeathsToChat(chatType, chatLabel)
@@ -683,6 +792,24 @@ SlashCmdList["RAIDDEATHTRACKER"] = function(msg)
             return
         end
         PostDeathsToChat(ch, arg ~= "" and arg or nil)
+    elseif msg:sub(1, 4) == "list" then
+        local arg = msg:sub(6):match("^%s*(.-)%s*$") or ""
+        local channelMap = { say = "SAY", yell = "YELL", party = "PARTY", raid = "RAID", emote = "EMOTE" }
+        local ch = channelMap[arg]
+        if arg ~= "" and not ch then
+            print("|cff00ff00[RDT]|r Unknown channel. Use: say, yell, party, raid, emote")
+            return
+        end
+        PrintFullList(ch, arg ~= "" and arg or nil)
+    elseif msg:sub(1, 4) == "zero" then
+        local arg = msg:sub(6):match("^%s*(.-)%s*$") or ""
+        local channelMap = { say = "SAY", yell = "YELL", party = "PARTY", raid = "RAID", emote = "EMOTE" }
+        local ch = channelMap[arg]
+        if arg ~= "" and not ch then
+            print("|cff00ff00[RDT]|r Unknown channel. Use: say, yell, party, raid, emote")
+            return
+        end
+        PrintZeroDeaths(ch, arg ~= "" and arg or nil)
     elseif msg == "sessions"   then
         if not RDTSessions or #RDTSessions == 0 then
             print("|cff00ff00[RDT]|r No saved sessions.")
@@ -710,6 +837,8 @@ SlashCmdList["RAIDDEATHTRACKER"] = function(msg)
         print("  /rdt            - Toggle window")
         print("  /rdt reset      - Reset all deaths")
         print("  /rdt post [channel]   - Post top 5 (say/yell/party/raid/emote)")
+        print("  /rdt list [channel]   - Full list incl. 0 deaths (optionally post)")
+        print("  /rdt zero [channel]   - Only players with 0 deaths (optionally post)")
         print("  /rdt sessions      - Show saved sessions")
         print("  /rdt test          - Test mode (dummy data)")
         print("  /rdt test clear    - End test mode")
