@@ -1,8 +1,8 @@
 # RaidDeathTracker – Project Context for Claude
 
 ## Environment
-- World of Warcraft: The Burning Crusade Classic Anniversary — Patch 2.5.5
-- Interface version: `20505`
+- World of Warcraft: The Burning Crusade Classic Anniversary — Patch 2.5.6
+- Interface version: `20506`
 - Lua 5.1 (WoW sandbox — no io, os, require, debug)
 
 ## WoW API Restrictions
