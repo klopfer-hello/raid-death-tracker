@@ -7,6 +7,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Raid timer** — starts automatically on the first pull inside a raid instance and shows elapsed time as a line in the panel (`Zone  time  -  N bosses down`). The timer uses epoch time, so it survives `/reload` and disconnects mid-raid.
+- **Boss kill times** — boss kills are detected via `ENCOUNTER_END` / `BOSS_KILL` (deduplicated per encounter) and recorded with time since raid start plus the fight duration. Each kill prints a short "Boss down" line to chat.
+- `/rdt time [channel]` — prints the raid time and the boss kill list (optionally posts to say/yell/party/raid/emote); `/rdt time reset` clears the timer
+- Raid timer data is saved into sessions, so browsing a past session with the arrows also shows that raid's time and boss kills via `/rdt time`
+- Test mode now includes a dummy Karazhan raid log
+
 ## [1.7.1] - 2026-07-08
 
 ### Changed

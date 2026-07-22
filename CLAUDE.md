@@ -58,7 +58,10 @@ A release consists of the following steps — always in this order:
 
 ## SavedVariables
 - `RaidDeathData` — table: `{ [playerName] = count }`
-- `RDTConfig` — table: `{ minimapPos = <angle> }`
+- `RDTConfig` — table: `{ minimapPos = <angle>, width, height }`
+- `RDTClassCache` — table: `{ [playerName] = classId }`
+- `RDTSessions` — array (max 5): `{ name, data, classes, raidLog }`
+- `RDTRaidLog` — table: `{ zone, startTime, endTime, bosses = { {name, t, dur} }, killed = { [encounterKey] = entry } }` (epoch times via `time()`)
 
 ## Commit Requirements
 

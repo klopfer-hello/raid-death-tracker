@@ -15,8 +15,13 @@ local frame = CreateFrame("Frame", "RaidDeathTrackerFrame", UIParent)
 frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+frame:RegisterEvent("PLAYER_REGEN_DISABLED")
 -- Group events: via pcall, as availability varies by client version
 for _, evt in ipairs({"GROUP_ROSTER_UPDATE", "PARTY_MEMBERS_CHANGED", "RAID_ROSTER_UPDATE"}) do
+    pcall(frame.RegisterEvent, frame, evt)
+end
+-- Encounter events: via pcall, as availability varies by client version
+for _, evt in ipairs({"ENCOUNTER_START", "ENCOUNTER_END", "BOSS_KILL"}) do
     pcall(frame.RegisterEvent, frame, evt)
 end
 
@@ -137,12 +142,23 @@ headerLine:SetPoint("TOPRIGHT", -10, -28)
 headerLine:SetHeight(1)
 headerLine:SetColorTexture(D.divider[1], D.divider[2], D.divider[3], D.divA)
 
+-- Raid time line (between header and death list; empty when no timer)
+local timeText = display:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+timeText:SetPoint("TOPLEFT", display, "TOPLEFT", 10, -34)
+timeText:SetJustifyH("LEFT")
+
 -- Content-Text
 local contentText = display:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 contentText:SetPoint("TOPLEFT", display, "TOPLEFT", 10, -36)
 contentText:SetWidth(240)
 contentText:SetJustifyH("LEFT")
 contentText:SetJustifyV("TOP")
+
+-- Shift the death list down when the raid time line is visible
+local function SetContentTop(offset)
+    contentText:ClearAllPoints()
+    contentText:SetPoint("TOPLEFT", display, "TOPLEFT", 10, -offset)
+end
 
 -- Divider above footer
 local footerLine = display:CreateTexture(nil, "ARTWORK")
@@ -317,7 +333,8 @@ end
 -- ----------------------------------------------------------------
 -- Session navigation logic
 -- ----------------------------------------------------------------
-local isTestMode = false
+local isTestMode  = false
+local testRaidLog = nil   -- dummy raid log while in test mode
 
 local function GetViewData()
     if viewIndex > 0 and RDTSessions and RDTSessions[viewIndex] then
@@ -370,6 +387,160 @@ nextBtn:SetScript("OnClick", function()
 end)
 
 -- ----------------------------------------------------------------
+-- Raid timer: first pull -> boss kills
+-- Uses time() (epoch), so a /reload mid-raid keeps the timer intact.
+-- ----------------------------------------------------------------
+local function FormatDuration(sec)
+    sec = math.max(0, math.floor(sec or 0))
+    local h = math.floor(sec / 3600)
+    local m = math.floor((sec % 3600) / 60)
+    local s = sec % 60
+    if h > 0 then
+        return string.format("%d:%02d:%02d", h, m, s)
+    end
+    return string.format("%d:%02d", m, s)
+end
+
+local function GetViewRaidLog()
+    if viewIndex > 0 and RDTSessions and RDTSessions[viewIndex] then
+        return RDTSessions[viewIndex].raidLog
+    end
+    if isTestMode and testRaidLog then return testRaidLog end
+    return RDTRaidLog
+end
+
+-- Elapsed raid time. Live while inside the tracked raid instance,
+-- otherwise frozen at the last boss kill ("first pull till last boss").
+local function GetRaidElapsed(log)
+    local liveView = (viewIndex == 0) and not isTestMode
+    local _, instType = IsInInstance()
+    local inThatRaid = liveView and instType == "raid" and GetRealZoneText() == log.zone
+    local bosses = log.bosses
+    local last = bosses and bosses[#bosses]
+    if inThatRaid then return time() - log.startTime, true end
+    if last then return last.t - log.startTime, false end
+    if log.endTime then return log.endTime - log.startTime, false end
+    if liveView then return time() - log.startTime, true end
+    return 0, false
+end
+
+local function UpdateTimeLine()
+    local log = GetViewRaidLog()
+    if not log or not log.startTime then
+        timeText:SetText("")
+        SetContentTop(36)
+        return
+    end
+    local elapsed, running = GetRaidElapsed(log)
+    local n = log.bosses and #log.bosses or 0
+    local line = string.format("|cff666672%s|r  |cff47bef5%s|r",
+        log.zone or "Raid", FormatDuration(elapsed))
+    if n > 0 then
+        line = line .. string.format("  |cff666672-  %d boss%s down|r", n, n == 1 and "" or "es")
+    elseif running then
+        line = line .. "  |cff666672-  in progress|r"
+    end
+    timeText:SetText(line)
+    SetContentTop(50)
+end
+
+-- Refresh the live timer once per second while the panel is shown
+local tickAccum = 0
+display:SetScript("OnUpdate", function(_, elapsed)
+    tickAccum = tickAccum + elapsed
+    if tickAccum < 1 then return end
+    tickAccum = 0
+    UpdateTimeLine()
+end)
+
+-- First pull: any combat start inside a raid instance arms the timer.
+-- A pull in a different raid zone starts a fresh log (multi-raid nights).
+local function OnCombatStart()
+    if not RDTRaidLog or isTestMode then return end
+    local _, instType = IsInInstance()
+    if instType ~= "raid" then return end
+    local zone = GetRealZoneText() or "Raid"
+    if RDTRaidLog.startTime and RDTRaidLog.zone == zone then return end
+    RDTRaidLog.zone      = zone
+    RDTRaidLog.startTime = time()
+    RDTRaidLog.bosses    = {}
+    RDTRaidLog.killed    = {}
+    RDTRaidLog.endTime   = nil
+    UpdateTimeLine()
+    print("|cff00ff00[RDT]|r Raid timer started: " .. zone)
+end
+
+-- ENCOUNTER_END and BOSS_KILL both fire for a kill — dedupe via
+-- encounter ID; the later event may backfill the fight duration.
+local function RecordBossKill(encounterID, encounterName, fightDur)
+    if not RDTRaidLog or isTestMode then return end
+    local _, instType = IsInInstance()
+    if instType ~= "raid" then return end
+    if not RDTRaidLog.startTime then OnCombatStart() end
+    if not RDTRaidLog.startTime then return end
+    RDTRaidLog.killed = RDTRaidLog.killed or {}
+    RDTRaidLog.bosses = RDTRaidLog.bosses or {}
+    local key = tostring(encounterID or encounterName)
+    local existing = RDTRaidLog.killed[key]
+    if existing then
+        if fightDur and type(existing) == "table" and not existing.dur then
+            existing.dur = fightDur
+        end
+        return
+    end
+    local entry = { name = encounterName or "Unknown boss", t = time(), dur = fightDur }
+    RDTRaidLog.killed[key] = entry
+    table.insert(RDTRaidLog.bosses, entry)
+    UpdateTimeLine()
+    local msg = string.format("|cff00ff00[RDT]|r Boss down: %s  +%s",
+        entry.name, FormatDuration(entry.t - RDTRaidLog.startTime))
+    if fightDur then
+        msg = msg .. string.format("  (fight %s)", FormatDuration(fightDur))
+    end
+    print(msg)
+end
+
+-- ----------------------------------------------------------------
+-- Print raid time & boss kill list (chat frame or channel)
+-- ----------------------------------------------------------------
+local function PrintRaidTime(chatType, chatLabel)
+    local log = GetViewRaidLog()
+    if not log or not log.startTime then
+        print("|cff00ff00[RDT]|r No raid timer recorded yet.")
+        return
+    end
+    local elapsed, running = GetRaidElapsed(log)
+    local bosses = log.bosses or {}
+    local header = string.format("%s - Raid time: %s%s",
+        log.zone or "Raid", FormatDuration(elapsed), running and " (running)" or "")
+
+    if chatType then
+        -- Post to chat: no color escapes allowed in SendChatMessage.
+        SendChatMessage("( --< Raid Death Tracker - " .. header .. " >-- )", chatType)
+        for i, b in ipairs(bosses) do
+            local line = string.format("#%d  %s  +%s", i, b.name, FormatDuration(b.t - log.startTime))
+            if b.dur then line = line .. string.format("  (fight %s)", FormatDuration(b.dur)) end
+            SendChatMessage(line, chatType)
+        end
+        print("|cff00ff00[RDT]|r Raid time posted to " .. (chatLabel or chatType) .. ".")
+        return
+    end
+
+    print("|cff00ff00[RDT]|r " .. header)
+    if #bosses == 0 then
+        print("  |cff666672No boss kills yet.|r")
+    end
+    for i, b in ipairs(bosses) do
+        local line = string.format("  %d. |cffd1d6e1%s|r  |cff47bef5+%s|r",
+            i, b.name, FormatDuration(b.t - log.startTime))
+        if b.dur then
+            line = line .. string.format("  |cff666672(fight %s)|r", FormatDuration(b.dur))
+        end
+        print(line)
+    end
+end
+
+-- ----------------------------------------------------------------
 -- UpdateDisplay
 -- ----------------------------------------------------------------
 local RANK_COLORS = {
@@ -393,6 +564,7 @@ local CLASS_COLORS = {
 }
 
 function RaidDeathTrackerFrame:UpdateDisplay()
+    UpdateTimeLine()
     local viewData, viewClasses = GetViewData()
     if not viewData or not next(viewData) then
         contentText:SetText("|cff333344No deaths recorded.|r")
@@ -587,14 +759,28 @@ end
 local MAX_SESSIONS = 5
 
 local function SaveSession()
-    if not RaidDeathData or not next(RaidDeathData) then return end
-    local zone = GetRealZoneText() or "Unknown"
+    local hasDeaths  = RaidDeathData and next(RaidDeathData)
+    local hasRaidLog = RDTRaidLog and RDTRaidLog.startTime
+    if not hasDeaths and not hasRaidLog then return end
+    local zone = (hasRaidLog and RDTRaidLog.zone) or GetRealZoneText() or "Unknown"
     local date = date("%d.%m")
     local name = zone .. " " .. date
     local data, classes = {}, {}
     for k, v in pairs(RaidDeathData)  do data[k]    = v end
     for k, v in pairs(RDTClassCache)  do classes[k] = v end
-    table.insert(RDTSessions, 1, { name = name, data = data, classes = classes })
+    local raidLog
+    if hasRaidLog then
+        raidLog = {
+            zone      = RDTRaidLog.zone,
+            startTime = RDTRaidLog.startTime,
+            endTime   = time(),
+            bosses    = {},
+        }
+        for _, b in ipairs(RDTRaidLog.bosses or {}) do
+            table.insert(raidLog.bosses, { name = b.name, t = b.t, dur = b.dur })
+        end
+    end
+    table.insert(RDTSessions, 1, { name = name, data = data, classes = classes, raidLog = raidLog })
     if #RDTSessions > MAX_SESSIONS then
         table.remove(RDTSessions, #RDTSessions)
     end
@@ -608,6 +794,7 @@ local function OnGroupRosterUpdate()
     if inGroup and not wasInGroup then
         RaidDeathData = {}
         RDTClassCache = {}
+        RDTRaidLog    = {}
         frame:UpdateDisplay()
         display:Show()
         print("|cff00ff00[RDT]|r Joined group — data reset.")
@@ -634,6 +821,9 @@ local lastDeathTime = {}
 -- ----------------------------------------------------------------
 local FEIGN_DEATH_DELAY = 3
 local pendingDeaths = {}  -- { [name] = { time = t, token = "raid1"|"party1"|"player" } }
+
+-- Currently running boss encounter (for fight duration)
+local currentEncounter = nil  -- { id = encounterID, startT = GetTime() }
 
 local deathCheckFrame = CreateFrame("Frame")
 
@@ -679,6 +869,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
             if not RDTConfig then RDTConfig = {} end
             if not RDTClassCache then RDTClassCache = {} end
             if not RDTSessions then RDTSessions = {} end
+            if not RDTRaidLog then RDTRaidLog = {} end
             -- Migration: old minimapAngle field -> minimapPos (LibDBIcon format)
             if not RDTConfig.minimapPos then
                 RDTConfig.minimapPos = RDTConfig.minimapAngle or 220
@@ -700,6 +891,29 @@ frame:SetScript("OnEvent", function(self, event, ...)
 
     elseif event == "PLAYER_ENTERING_WORLD" then
         UpdateGroupVisibility()
+
+    elseif event == "PLAYER_REGEN_DISABLED" then
+        OnCombatStart()
+
+    elseif event == "ENCOUNTER_START" then
+        local encounterID = ...
+        OnCombatStart()
+        currentEncounter = { id = encounterID, startT = GetTime() }
+
+    elseif event == "ENCOUNTER_END" then
+        local encounterID, encounterName, _, _, success = ...
+        if success == 1 or success == true then
+            local dur
+            if currentEncounter and currentEncounter.id == encounterID then
+                dur = GetTime() - currentEncounter.startT
+            end
+            RecordBossKill(encounterID, encounterName, dur)
+        end
+        currentEncounter = nil
+
+    elseif event == "BOSS_KILL" then
+        local encounterID, encounterName = ...
+        RecordBossKill(encounterID, encounterName, nil)
 
     elseif event == "GROUP_ROSTER_UPDATE"
         or event == "PARTY_MEMBERS_CHANGED"
@@ -754,6 +968,17 @@ local function ActivateTestMode()
     for _, name in ipairs(TEST_NAMES) do
         RaidDeathData[name] = math.random(1, 15)
     end
+    testRaidLog = {
+        zone      = "Karazhan",
+        startTime = time() - 5400,
+        bosses = {
+            { name = "Attumen the Huntsman", t = time() - 4980, dur = 155 },
+            { name = "Moroes",               t = time() - 4260, dur = 233 },
+            { name = "Maiden of Virtue",     t = time() - 3660, dur = 187 },
+            { name = "The Curator",          t = time() - 2400, dur = 312 },
+            { name = "Prince Malchezaar",    t = time() - 600,  dur = 428 },
+        },
+    }
     print("|cff00ff00[RDT]|r Test: " .. #TEST_NAMES .. " entries created.")
     display:Show()
     frame:UpdateDisplay()
@@ -764,6 +989,7 @@ local function DeactivateTestMode()
     isTestMode = false
     viewIndex  = 0
     RaidDeathData = {}
+    testRaidLog   = nil
     frame:UpdateDisplay()
     UpdateNavUI()
     print("|cff00ff00[RDT]|r Test mode ended.")
@@ -810,6 +1036,21 @@ SlashCmdList["RAIDDEATHTRACKER"] = function(msg)
             return
         end
         PrintZeroDeaths(ch, arg ~= "" and arg or nil)
+    elseif msg:sub(1, 4) == "time" then
+        local arg = msg:sub(6):match("^%s*(.-)%s*$") or ""
+        if arg == "reset" then
+            RDTRaidLog = {}
+            frame:UpdateDisplay()
+            print("|cff00ff00[RDT]|r Raid timer reset.")
+            return
+        end
+        local channelMap = { say = "SAY", yell = "YELL", party = "PARTY", raid = "RAID", emote = "EMOTE" }
+        local ch = channelMap[arg]
+        if arg ~= "" and not ch then
+            print("|cff00ff00[RDT]|r Unknown channel. Use: say, yell, party, raid, emote (or: reset)")
+            return
+        end
+        PrintRaidTime(ch, arg ~= "" and arg or nil)
     elseif msg == "sessions"   then
         if not RDTSessions or #RDTSessions == 0 then
             print("|cff00ff00[RDT]|r No saved sessions.")
@@ -839,6 +1080,8 @@ SlashCmdList["RAIDDEATHTRACKER"] = function(msg)
         print("  /rdt post [channel]   - Post top 5 (say/yell/party/raid/emote)")
         print("  /rdt list [channel]   - Full list incl. 0 deaths (optionally post)")
         print("  /rdt zero [channel]   - Only players with 0 deaths (optionally post)")
+        print("  /rdt time [channel]   - Raid time & boss kills (optionally post)")
+        print("  /rdt time reset       - Reset the raid timer")
         print("  /rdt sessions      - Show saved sessions")
         print("  /rdt test          - Test mode (dummy data)")
         print("  /rdt test clear    - End test mode")
