@@ -401,12 +401,15 @@ local function FormatDuration(sec)
     return string.format("%d:%02d", m, s)
 end
 
+-- The raid log lives in RDTConfig.raidLog: RDTConfig has been a
+-- registered SavedVariable since v1.0, so persistence works with a
+-- plain /reload — no client restart needed to pick up a new TOC entry.
 local function GetViewRaidLog()
     if viewIndex > 0 and RDTSessions and RDTSessions[viewIndex] then
         return RDTSessions[viewIndex].raidLog
     end
     if isTestMode and testRaidLog then return testRaidLog end
-    return RDTRaidLog
+    return RDTConfig and RDTConfig.raidLog
 end
 
 -- Elapsed raid time. Live while inside the tracked raid instance,
@@ -456,49 +459,128 @@ end)
 -- First pull: any combat start inside a raid instance arms the timer.
 -- A pull in a different raid zone starts a fresh log (multi-raid nights).
 local function OnCombatStart()
-    if not RDTRaidLog or isTestMode then return end
+    if not RDTConfig or isTestMode then return end
     local _, instType = IsInInstance()
     if instType ~= "raid" then return end
     local zone = GetRealZoneText() or "Raid"
-    if RDTRaidLog.startTime and RDTRaidLog.zone == zone then return end
-    RDTRaidLog.zone      = zone
-    RDTRaidLog.startTime = time()
-    RDTRaidLog.bosses    = {}
-    RDTRaidLog.killed    = {}
-    RDTRaidLog.endTime   = nil
+    local log = RDTConfig.raidLog
+    if log and log.startTime and log.zone == zone then return end
+    RDTConfig.raidLog = {
+        zone      = zone,
+        startTime = time(),
+        bosses    = {},
+        killed    = {},
+    }
     UpdateTimeLine()
     print("|cff00ff00[RDT]|r Raid timer started: " .. zone)
 end
 
--- ENCOUNTER_END and BOSS_KILL both fire for a kill — dedupe via
--- encounter ID; the later event may backfill the fight duration.
+-- A kill can be reported up to three times (ENCOUNTER_END, BOSS_KILL,
+-- combat-log fallback) — dedupe via encounter id AND boss name; a
+-- later event may backfill the fight duration.
 local function RecordBossKill(encounterID, encounterName, fightDur)
-    if not RDTRaidLog or isTestMode then return end
+    if not RDTConfig or isTestMode then return end
     local _, instType = IsInInstance()
     if instType ~= "raid" then return end
-    if not RDTRaidLog.startTime then OnCombatStart() end
-    if not RDTRaidLog.startTime then return end
-    RDTRaidLog.killed = RDTRaidLog.killed or {}
-    RDTRaidLog.bosses = RDTRaidLog.bosses or {}
-    local key = tostring(encounterID or encounterName)
-    local existing = RDTRaidLog.killed[key]
+    local log = RDTConfig.raidLog
+    if not log or not log.startTime then
+        OnCombatStart()
+        log = RDTConfig.raidLog
+    end
+    if not log or not log.startTime then return end
+    log.killed = log.killed or {}
+    log.bosses = log.bosses or {}
+    local name    = encounterName or "Unknown boss"
+    local nameKey = "name:" .. name
+    local idKey   = encounterID and ("id:" .. encounterID) or nil
+    local existing = log.killed[nameKey] or (idKey and log.killed[idKey])
     if existing then
-        if fightDur and type(existing) == "table" and not existing.dur then
-            existing.dur = fightDur
+        if type(existing) == "table" then
+            if fightDur and not existing.dur then existing.dur = fightDur end
+            log.killed[nameKey] = existing
+            if idKey then log.killed[idKey] = existing end
         end
         return
     end
-    local entry = { name = encounterName or "Unknown boss", t = time(), dur = fightDur }
-    RDTRaidLog.killed[key] = entry
-    table.insert(RDTRaidLog.bosses, entry)
+    local entry = { name = name, t = time(), dur = fightDur }
+    log.killed[nameKey] = entry
+    if idKey then log.killed[idKey] = entry end
+    table.insert(log.bosses, entry)
     UpdateTimeLine()
     local msg = string.format("|cff00ff00[RDT]|r Boss down: %s  +%s",
-        entry.name, FormatDuration(entry.t - RDTRaidLog.startTime))
+        name, FormatDuration(entry.t - log.startTime))
     if fightDur then
         msg = msg .. string.format("  (fight %s)", FormatDuration(fightDur))
     end
     print(msg)
 end
+
+-- Combat-log fallback: on classic clients some encounters (e.g.
+-- Hydross) don't reliably fire ENCOUNTER_END/BOSS_KILL, so UNIT_DIED
+-- of these NPC ids also counts as a kill. true = use the combat log
+-- name; string = shared display name for multi-mob encounters.
+-- Deliberately absent (scripted endings or mid-fight deaths would
+-- cause false/premature records): Opera, Chess, Romulo & Julianne,
+-- Eredar Twins, M'uru phase 1.
+local BOSS_NPCS = {
+    -- Karazhan
+    [15550] = true, [16152] = true,   -- Attumen the Huntsman
+    [15687] = true,                   -- Moroes
+    [16457] = true,                   -- Maiden of Virtue
+    [15691] = true,                   -- The Curator
+    [15688] = true,                   -- Terestian Illhoof
+    [16524] = true,                   -- Shade of Aran
+    [15689] = true,                   -- Netherspite
+    [15690] = true,                   -- Prince Malchezaar
+    [17225] = true,                   -- Nightbane
+    -- Gruul's Lair
+    [18831] = true,                   -- High King Maulgar
+    [19044] = true,                   -- Gruul the Dragonkiller
+    -- Magtheridon's Lair
+    [17257] = true,                   -- Magtheridon
+    -- Serpentshrine Cavern
+    [21216] = true,                   -- Hydross the Unstable
+    [21217] = true,                   -- The Lurker Below
+    [21215] = true,                   -- Leotheras the Blind
+    [21214] = true,                   -- Fathom-Lord Karathress
+    [21213] = true,                   -- Morogrim Tidewalker
+    [21212] = true,                   -- Lady Vashj
+    -- Tempest Keep: The Eye
+    [19514] = true,                   -- Al'ar
+    [19516] = true,                   -- Void Reaver
+    [18805] = true,                   -- High Astromancer Solarian
+    [19622] = true,                   -- Kael'thas Sunstrider
+    -- Mount Hyjal
+    [17767] = true,                   -- Rage Winterchill
+    [17808] = true,                   -- Anetheron
+    [17888] = true,                   -- Kaz'rogal
+    [17842] = true,                   -- Azgalor
+    [17968] = true,                   -- Archimonde
+    -- Black Temple
+    [22887] = true,                   -- High Warlord Naj'entus
+    [22898] = true,                   -- Supremus
+    [22841] = true,                   -- Shade of Akama
+    [22871] = true,                   -- Teron Gorefiend
+    [22948] = true,                   -- Gurtogg Bloodboil
+    [23420] = "Reliquary of Souls",   -- Essence of Anger
+    [22947] = true,                   -- Mother Shahraz
+    [22949] = "Illidari Council", [22950] = "Illidari Council",
+    [22951] = "Illidari Council", [22952] = "Illidari Council",
+    [22917] = true,                   -- Illidan Stormrage
+    -- Zul'Aman
+    [23574] = true,                   -- Akil'zon
+    [23576] = true,                   -- Nalorakk
+    [23578] = true,                   -- Jan'alai
+    [23577] = true,                   -- Halazzi
+    [24239] = true,                   -- Hex Lord Malacrass
+    [23863] = true,                   -- Zul'jin
+    -- Sunwell Plateau
+    [24892] = "Kalecgos",             -- Sathrovarr the Corruptor
+    [24882] = true,                   -- Brutallus
+    [25038] = true,                   -- Felmyst
+    [25840] = "M'uru",                -- Entropius
+    [25315] = true,                   -- Kil'jaeden
+}
 
 -- ----------------------------------------------------------------
 -- Print raid time & boss kill list (chat frame or channel)
@@ -760,9 +842,10 @@ local MAX_SESSIONS = 5
 
 local function SaveSession()
     local hasDeaths  = RaidDeathData and next(RaidDeathData)
-    local hasRaidLog = RDTRaidLog and RDTRaidLog.startTime
+    local rl         = RDTConfig and RDTConfig.raidLog
+    local hasRaidLog = rl and rl.startTime
     if not hasDeaths and not hasRaidLog then return end
-    local zone = (hasRaidLog and RDTRaidLog.zone) or GetRealZoneText() or "Unknown"
+    local zone = (hasRaidLog and rl.zone) or GetRealZoneText() or "Unknown"
     local date = date("%d.%m")
     local name = zone .. " " .. date
     local data, classes = {}, {}
@@ -771,12 +854,12 @@ local function SaveSession()
     local raidLog
     if hasRaidLog then
         raidLog = {
-            zone      = RDTRaidLog.zone,
-            startTime = RDTRaidLog.startTime,
+            zone      = rl.zone,
+            startTime = rl.startTime,
             endTime   = time(),
             bosses    = {},
         }
-        for _, b in ipairs(RDTRaidLog.bosses or {}) do
+        for _, b in ipairs(rl.bosses or {}) do
             table.insert(raidLog.bosses, { name = b.name, t = b.t, dur = b.dur })
         end
     end
@@ -794,7 +877,7 @@ local function OnGroupRosterUpdate()
     if inGroup and not wasInGroup then
         RaidDeathData = {}
         RDTClassCache = {}
-        RDTRaidLog    = {}
+        if RDTConfig then RDTConfig.raidLog = {} end
         frame:UpdateDisplay()
         display:Show()
         print("|cff00ff00[RDT]|r Joined group — data reset.")
@@ -869,7 +952,11 @@ frame:SetScript("OnEvent", function(self, event, ...)
             if not RDTConfig then RDTConfig = {} end
             if not RDTClassCache then RDTClassCache = {} end
             if not RDTSessions then RDTSessions = {} end
-            if not RDTRaidLog then RDTRaidLog = {} end
+            if not RDTConfig.raidLog then
+                -- Migration: RDTRaidLog was briefly its own SavedVariable
+                RDTConfig.raidLog = (type(RDTRaidLog) == "table" and RDTRaidLog) or {}
+            end
+            RDTRaidLog = nil
             -- Migration: old minimapAngle field -> minimapPos (LibDBIcon format)
             if not RDTConfig.minimapPos then
                 RDTConfig.minimapPos = RDTConfig.minimapAngle or 220
@@ -924,9 +1011,20 @@ frame:SetScript("OnEvent", function(self, event, ...)
         local _, subEvent, _, _, _, _, _, destGUID, destName =
             CombatLogGetCurrentEventInfo()
 
-        if subEvent == "UNIT_DIED"
-            and destGUID
-            and destGUID:sub(1, 6) == "Player"
+        if subEvent ~= "UNIT_DIED" or not destGUID then return end
+
+        -- Boss kill fallback via NPC id from the creature GUID
+        -- (GUID format: Creature-0-server-instance-zone-npcID-spawn)
+        if destGUID:sub(1, 8) == "Creature" then
+            local npcID = tonumber((select(6, strsplit("-", destGUID))))
+            local boss = npcID and BOSS_NPCS[npcID]
+            if boss then
+                RecordBossKill(nil, boss == true and destName or boss, nil)
+            end
+            return
+        end
+
+        if destGUID:sub(1, 6) == "Player"
             and (IsInRaid() or IsInGroup())
         then
             -- Only count own party/raid members
@@ -1039,7 +1137,7 @@ SlashCmdList["RAIDDEATHTRACKER"] = function(msg)
     elseif msg:sub(1, 4) == "time" then
         local arg = msg:sub(6):match("^%s*(.-)%s*$") or ""
         if arg == "reset" then
-            RDTRaidLog = {}
+            if RDTConfig then RDTConfig.raidLog = {} end
             frame:UpdateDisplay()
             print("|cff00ff00[RDT]|r Raid timer reset.")
             return
