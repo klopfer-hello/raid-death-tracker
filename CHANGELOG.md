@@ -7,7 +7,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased]
+## [1.8.0] - 2026-07-23
 
 ### Added
 - **Raid timer** — starts automatically on the first pull inside a raid instance and shows elapsed time as a line in the panel (`Zone  time  -  N bosses down`). The timer uses epoch time and is stored inside `RDTConfig` (a SavedVariable registered since v1.0), so it survives `/reload` and disconnects mid-raid without requiring a client restart to pick up a new TOC entry.
