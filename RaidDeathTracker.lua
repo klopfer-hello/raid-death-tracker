@@ -417,7 +417,9 @@ end
 local function GetRaidElapsed(log)
     local liveView = (viewIndex == 0) and not isTestMode
     local _, instType = IsInInstance()
-    local inThatRaid = liveView and instType == "raid" and GetRealZoneText() == log.zone
+    local inThatRaid = liveView
+        and (instType == "raid" or instType == "party")
+        and GetRealZoneText() == log.zone
     local bosses = log.bosses
     local last = bosses and bosses[#bosses]
     if inThatRaid then return time() - log.startTime, true end
@@ -456,23 +458,42 @@ display:SetScript("OnUpdate", function(_, elapsed)
     UpdateTimeLine()
 end)
 
--- First pull: any combat start inside a raid instance arms the timer.
--- A pull in a different raid zone starts a fresh log (multi-raid nights).
+-- Dungeon timers are limited to TBC dungeons for now (instance map ids)
+local TBC_DUNGEONS = {
+    [543] = true, [542] = true, [540] = true,               -- Hellfire Citadel
+    [547] = true, [546] = true, [545] = true,               -- Coilfang Reservoir
+    [557] = true, [558] = true, [556] = true, [555] = true, -- Auchindoun
+    [560] = true, [269] = true,                             -- Caverns of Time
+    [554] = true, [553] = true, [552] = true,               -- Tempest Keep
+    [585] = true,                                           -- Magisters' Terrace
+}
+
+-- First pull: any combat start inside a raid or TBC dungeon arms the
+-- timer (group required, so solo farming does not trigger it).
+-- A pull in a different instance starts a fresh log (multi-run nights).
 local function OnCombatStart()
     if not RDTConfig or isTestMode then return end
+    if not (IsInRaid() or IsInGroup()) then return end
     local _, instType = IsInInstance()
-    if instType ~= "raid" then return end
-    local zone = GetRealZoneText() or "Raid"
+    if instType ~= "raid" and instType ~= "party" then return end
+    if instType == "party" then
+        local mapID = select(8, GetInstanceInfo())
+        if not TBC_DUNGEONS[mapID or 0] then return end
+    end
+    local zone = GetRealZoneText() or "Instance"
     local log = RDTConfig.raidLog
     if log and log.startTime and log.zone == zone then return end
     RDTConfig.raidLog = {
         zone      = zone,
+        instType  = instType,
         startTime = time(),
         bosses    = {},
         killed    = {},
     }
     UpdateTimeLine()
-    print("|cff00ff00[RDT]|r Raid timer started: " .. zone)
+    print("|cff00ff00[RDT]|r "
+        .. (instType == "party" and "Dungeon" or "Raid")
+        .. " timer started: " .. zone)
 end
 
 -- A kill can be reported up to three times (ENCOUNTER_END, BOSS_KILL,
@@ -481,7 +502,7 @@ end
 local function RecordBossKill(encounterID, encounterName, fightDur)
     if not RDTConfig or isTestMode then return end
     local _, instType = IsInInstance()
-    if instType ~= "raid" then return end
+    if instType ~= "raid" and instType ~= "party" then return end
     local log = RDTConfig.raidLog
     if not log or not log.startTime then
         OnCombatStart()
@@ -580,6 +601,77 @@ local BOSS_NPCS = {
     [25038] = true,                   -- Felmyst
     [25840] = "M'uru",                -- Entropius
     [25315] = true,                   -- Kil'jaeden
+
+    -- ---- TBC dungeons (best effort; encounter events are primary) ----
+    -- Hellfire Ramparts
+    [17306] = true,                   -- Watchkeeper Gargolmar
+    [17308] = true,                   -- Omor the Unscarred
+    [17536] = "Vazruden the Herald", [17537] = "Vazruden the Herald",
+    -- The Blood Furnace
+    [17381] = true,                   -- The Maker
+    [17380] = true,                   -- Broggok
+    [17377] = true,                   -- Keli'dan the Breaker
+    -- The Shattered Halls
+    [16807] = true,                   -- Grand Warlock Nethekurse
+    [16809] = true,                   -- Warbringer O'mrogg
+    [16808] = true,                   -- Warchief Kargath Bladefist
+    -- The Slave Pens
+    [17941] = true,                   -- Mennu the Betrayer
+    [17991] = true,                   -- Rokmar the Crackler
+    [17942] = true,                   -- Quagmirran
+    -- The Underbog
+    [17770] = true,                   -- Hungarfen
+    [18105] = true,                   -- Ghaz'an
+    [17826] = true,                   -- Swamplord Musel'ek
+    [17882] = true,                   -- The Black Stalker
+    -- The Steamvault
+    [17797] = true,                   -- Hydromancer Thespia
+    [17796] = true,                   -- Mekgineer Steamrigger
+    [17798] = true,                   -- Warlord Kalithresh
+    -- Mana-Tombs
+    [18341] = true,                   -- Pandemonius
+    [18343] = true,                   -- Tavarok
+    [18344] = true,                   -- Nexus-Prince Shaffar
+    -- Auchenai Crypts
+    [18371] = true,                   -- Shirrak the Dead Watcher
+    [18373] = true,                   -- Exarch Maladaar
+    -- Sethekk Halls
+    [18472] = true,                   -- Darkweaver Syth
+    [18473] = true,                   -- Talon King Ikiss
+    [23035] = true,                   -- Anzu
+    -- Shadow Labyrinth
+    [18731] = true,                   -- Ambassador Hellmaw
+    [18667] = true,                   -- Blackheart the Inciter
+    [18732] = true,                   -- Grandmaster Vorpil
+    [18708] = true,                   -- Murmur
+    -- Old Hillsbrad Foothills
+    [17848] = true,                   -- Lieutenant Drake
+    [17862] = true,                   -- Captain Skarloc
+    [18096] = true,                   -- Epoch Hunter
+    -- The Black Morass
+    [17879] = true,                   -- Chrono Lord Deja
+    [17880] = true,                   -- Temporus
+    [17881] = true,                   -- Aeonus
+    -- The Mechanar
+    [19219] = true,                   -- Mechano-Lord Capacitus
+    [19221] = true,                   -- Nethermancer Sepethrea
+    [19220] = true,                   -- Pathaleon the Calculator
+    -- The Botanica
+    [17976] = true,                   -- Commander Sarannis
+    [17975] = true,                   -- High Botanist Freywinn
+    [17978] = true,                   -- Thorngrin the Tender
+    [17980] = true,                   -- Laj
+    [17977] = true,                   -- Warp Splinter
+    -- The Arcatraz
+    [20870] = true,                   -- Zereketh the Unbound
+    [20885] = true,                   -- Dalliah the Doomsayer
+    [20886] = true,                   -- Wrath-Scryer Soccothrates
+    [20912] = true,                   -- Harbinger Skyriss
+    -- Magisters' Terrace
+    [24723] = true,                   -- Selin Fireheart
+    [24744] = true,                   -- Vexallus
+    [24560] = true,                   -- Priestess Delrissa
+    [24664] = true,                   -- Kael'thas Sunstrider (MgT)
 }
 
 -- ----------------------------------------------------------------
@@ -593,8 +685,9 @@ local function PrintRaidTime(chatType, chatLabel)
     end
     local elapsed, running = GetRaidElapsed(log)
     local bosses = log.bosses or {}
-    local header = string.format("%s - Raid time: %s%s",
-        log.zone or "Raid", FormatDuration(elapsed), running and " (running)" or "")
+    local kind = (log.instType == "party") and "Dungeon time" or "Raid time"
+    local header = string.format("%s - %s: %s%s",
+        log.zone or "Raid", kind, FormatDuration(elapsed), running and " (running)" or "")
 
     if chatType then
         -- Post to chat: no color escapes allowed in SendChatMessage.
@@ -855,6 +948,7 @@ local function SaveSession()
     if hasRaidLog then
         raidLog = {
             zone      = rl.zone,
+            instType  = rl.instType,
             startTime = rl.startTime,
             endTime   = time(),
             bosses    = {},
