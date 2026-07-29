@@ -21,6 +21,7 @@ Tracks player deaths in party and raid, displays a top-5 ranking, and can post r
 | `/rdt reset` | Reset all deaths |
 | `/rdt post` | Post top 5 to raid/party chat |
 | `/rdt time [channel]` | Show raid time & boss kill list (optionally post to a channel) |
+| `/rdt time <name>` | Whisper the raid time & boss kill list to a player |
 | `/rdt time reset` | Reset the raid timer |
 | `/rdt test` | Enable test mode with dummy data |
 | `/rdt test clear` | Exit test mode |

@@ -677,7 +677,7 @@ local BOSS_NPCS = {
 -- ----------------------------------------------------------------
 -- Print raid time & boss kill list (chat frame or channel)
 -- ----------------------------------------------------------------
-local function PrintRaidTime(chatType, chatLabel)
+local function PrintRaidTime(chatType, chatLabel, whisperTarget)
     local log = GetViewRaidLog()
     if not log or not log.startTime then
         print("|cff00ff00[RDT]|r No raid timer recorded yet.")
@@ -691,11 +691,13 @@ local function PrintRaidTime(chatType, chatLabel)
 
     if chatType then
         -- Post to chat: no color escapes allowed in SendChatMessage.
-        SendChatMessage("( --< Raid Death Tracker - " .. header .. " >-- )", chatType)
+        -- whisperTarget is only set (and only used) for chatType WHISPER.
+        SendChatMessage("( --< Raid Death Tracker - " .. header .. " >-- )",
+            chatType, nil, whisperTarget)
         for i, b in ipairs(bosses) do
             local line = string.format("#%d  %s  +%s", i, b.name, FormatDuration(b.t - log.startTime))
             if b.dur then line = line .. string.format("  (fight %s)", FormatDuration(b.dur)) end
-            SendChatMessage(line, chatType)
+            SendChatMessage(line, chatType, nil, whisperTarget)
         end
         print("|cff00ff00[RDT]|r Raid time posted to " .. (chatLabel or chatType) .. ".")
         return
@@ -1192,7 +1194,8 @@ end
 -- ----------------------------------------------------------------
 SLASH_RAIDDEATHTRACKER1 = "/rdt"
 SlashCmdList["RAIDDEATHTRACKER"] = function(msg)
-    msg = msg:lower():match("^%s*(.-)%s*$")
+    local raw = msg:match("^%s*(.-)%s*$") or ""
+    msg = raw:lower()
 
     if     msg == ""           then
         if display:IsShown() then display:Hide() else display:Show() end
@@ -1239,7 +1242,10 @@ SlashCmdList["RAIDDEATHTRACKER"] = function(msg)
         local channelMap = { say = "SAY", yell = "YELL", party = "PARTY", raid = "RAID", emote = "EMOTE" }
         local ch = channelMap[arg]
         if arg ~= "" and not ch then
-            print("|cff00ff00[RDT]|r Unknown channel. Use: say, yell, party, raid, emote (or: reset)")
+            -- Anything that is no channel keyword counts as a player
+            -- name -> whisper (original case from raw input).
+            local target = raw:sub(6):match("^%s*(.-)%s*$")
+            PrintRaidTime("WHISPER", target, target)
             return
         end
         PrintRaidTime(ch, arg ~= "" and arg or nil)
@@ -1273,6 +1279,7 @@ SlashCmdList["RAIDDEATHTRACKER"] = function(msg)
         print("  /rdt list [channel]   - Full list incl. 0 deaths (optionally post)")
         print("  /rdt zero [channel]   - Only players with 0 deaths (optionally post)")
         print("  /rdt time [channel]   - Raid time & boss kills (optionally post)")
+        print("  /rdt time <name>      - Whisper raid time to a player")
         print("  /rdt time reset       - Reset the raid timer")
         print("  /rdt sessions      - Show saved sessions")
         print("  /rdt test          - Test mode (dummy data)")

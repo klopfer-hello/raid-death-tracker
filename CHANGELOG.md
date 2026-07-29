@@ -12,6 +12,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ### Added
 - **Dungeon timers** — the instance timer now also runs in 5-man dungeons: first pull starts it, boss kills are recorded with kill time and fight duration, and `/rdt time` labels the run as "Dungeon time". Limited to TBC dungeons for now (checked via instance map id); old-world dungeons don't trigger it. All TBC dungeon boss NPC ids were added to the combat-log fallback.
 - The timer now requires being in a group, so solo instance farming no longer arms it.
+- `/rdt time <name>` — whispers the raid/dungeon time and boss kill list to a player. Any argument that is not a channel keyword or `reset` is treated as a whisper target.
 
 ## [1.8.0] - 2026-07-23
 
