@@ -30,7 +30,7 @@ Tracks player deaths in party and raid, displays a top-5 ranking, and can post r
 
 - Session history is saved automatically when you **leave the group**. If you log off while still in a raid, the current session will not be saved to history (but live data persists across reloads).
 - Deaths are tracked via the combat log, which only covers events within ~50 yards. If you are dead and the group moves away from your corpse, their deaths may not be recorded.
-- The raid/dungeon time counts live while you are inside the instance and stops the moment the **end boss** dies (first pull → last boss). Optional bosses killed afterwards extend the time to their kill; leaving the instance also freezes the time at the last boss kill.
+- The raid/dungeon time counts live while you are inside the instance and stops the moment **all required bosses** are dead (kill order doesn't matter; dungeons stop on the end boss). Optional bosses killed afterwards extend the time to their kill; leaving the instance also freezes the time at the last boss kill.
 - **Multi-raid nights:** pulling in another raid with the same group continues the timer — the travel time between the raids is excluded (the clock retroactively pauses at the previous raid's last boss kill and resumes on the next first pull). Deaths and boss kills stay merged into one list. Raid→dungeon (or vice versa) starts a fresh timer instead.
 - Dungeon timers currently cover **TBC dungeons only** and require being in a group.
 

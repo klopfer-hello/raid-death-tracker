@@ -572,6 +572,61 @@ local FINAL_BOSSES = {
     ["Harbinger Skyriss"]         = true,
 }
 
+-- Required bosses per raid: the clock stops once ALL of them are
+-- dead in the current segment, so the kill order is not fixated.
+-- Optional/untrackable encounters (Attumen, Maiden, Opera, Illhoof,
+-- Netherspite, Nightbane, Chess) are excluded — killing them still
+-- extends the frozen time. Zones without a list fall back to the
+-- FINAL_BOSSES end-boss rule (used for dungeons).
+local THE_EYE = { "Al'ar", "Void Reaver", "High Astromancer Solarian", "Kael'thas Sunstrider" }
+local HYJAL   = { "Rage Winterchill", "Anetheron", "Kaz'rogal", "Azgalor", "Archimonde" }
+local BT      = { "High Warlord Naj'entus", "Supremus", "Shade of Akama", "Teron Gorefiend",
+                  "Gurtogg Bloodboil", "Reliquary of Souls", "Mother Shahraz",
+                  "Illidari Council", "Illidan Stormrage" }
+local REQUIRED_BOSSES = {
+    ["Karazhan"]             = { "Moroes", "The Curator", "Shade of Aran", "Prince Malchezaar" },
+    ["Gruul's Lair"]         = { "High King Maulgar", "Gruul the Dragonkiller" },
+    ["Magtheridon's Lair"]   = { "Magtheridon" },
+    ["Serpentshrine Cavern"] = { "Hydross the Unstable", "The Lurker Below", "Leotheras the Blind",
+                                 "Fathom-Lord Karathress", "Morogrim Tidewalker", "Lady Vashj" },
+    ["Tempest Keep"]         = THE_EYE,
+    ["The Eye"]              = THE_EYE,
+    ["Hyjal Summit"]         = HYJAL,
+    ["The Battle for Mount Hyjal"] = HYJAL,
+    ["Black Temple"]         = BT,
+    ["The Black Temple"]     = BT,
+    ["Zul'Aman"]             = { "Akil'zon", "Nalorakk", "Jan'alai", "Halazzi",
+                                 "Hex Lord Malacrass", "Zul'jin" },
+    ["Sunwell Plateau"]      = { "Kalecgos", "Brutallus", "Felmyst", "Eredar Twins",
+                                 "M'uru", "Kil'jaeden" },
+}
+
+-- Complete when every required boss of the zone died in the current
+-- segment. Names match leniently (substring both ways), since the
+-- encounter event name and the fallback name can differ slightly
+-- (e.g. "Eredar Twins" vs "The Eredar Twins").
+local function IsInstanceComplete(log, killName)
+    local req = REQUIRED_BOSSES[log.zone or ""]
+    if not req then
+        return FINAL_BOSSES[killName] or false
+    end
+    local segStart = log.segStart or log.startTime or 0
+    for _, want in ipairs(req) do
+        local found = false
+        for _, b in ipairs(log.bosses or {}) do
+            if b.t >= segStart
+                and (b.name == want
+                    or b.name:find(want, 1, true)
+                    or want:find(b.name, 1, true)) then
+                found = true
+                break
+            end
+        end
+        if not found then return false end
+    end
+    return true
+end
+
 -- A kill can be reported up to three times (ENCOUNTER_END, BOSS_KILL,
 -- combat-log fallback) — dedupe via encounter id AND boss name; a
 -- later event may backfill the fight duration.
@@ -611,7 +666,11 @@ local function RecordBossKill(encounterID, encounterName, fightDur)
     log.killed[nameKey] = entry
     if idKey then log.killed[idKey] = entry end
     table.insert(log.bosses, entry)
-    if FINAL_BOSSES[name] then log.finalDown = true end
+    local justCompleted = false
+    if not log.finalDown and IsInstanceComplete(log, name) then
+        log.finalDown = true
+        justCompleted = true
+    end
     UpdateTimeLine()
     local msg = string.format("|cff00ff00[RDT]|r Boss down: %s  +%s",
         name, FormatDuration(entry.e))
@@ -619,7 +678,7 @@ local function RecordBossKill(encounterID, encounterName, fightDur)
         msg = msg .. string.format("  (fight %s)", FormatDuration(fightDur))
     end
     print(msg)
-    if FINAL_BOSSES[name] then
+    if justCompleted then
         print("|cff00ff00[RDT]|r " .. (log.zone or "Instance") .. " complete - "
             .. ((log.instType == "party") and "Dungeon" or "Raid")
             .. " time: " .. FormatDuration(entry.e))
