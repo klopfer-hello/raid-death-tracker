@@ -412,20 +412,28 @@ local function GetViewRaidLog()
     return RDTConfig and RDTConfig.raidLog
 end
 
--- Elapsed raid time. Live while inside the tracked raid instance,
+-- Elapsed active time. Live while inside the tracked instance,
 -- otherwise frozen at the last boss kill ("first pull till last boss").
+-- Chained instances accumulate: baseElapsed holds the closed segments,
+-- segStart is where the current segment began (travel time between
+-- instances is excluded when the next segment opens).
 local function GetRaidElapsed(log)
     local liveView = (viewIndex == 0) and not isTestMode
     local _, instType = IsInInstance()
     local inThatRaid = liveView
         and (instType == "raid" or instType == "party")
         and GetRealZoneText() == log.zone
-    local bosses = log.bosses
-    local last = bosses and bosses[#bosses]
-    if inThatRaid then return time() - log.startTime, true end
-    if last then return last.t - log.startTime, false end
+    local segStart = log.segStart or log.startTime
+    local base     = log.baseElapsed or 0
+    local bosses   = log.bosses
+    local last     = bosses and bosses[#bosses]
+    if inThatRaid then return base + (time() - segStart), true end
+    if last then
+        local segTime = (last.t >= segStart) and (last.t - segStart) or 0
+        return base + segTime, false
+    end
     if log.endTime then return log.endTime - log.startTime, false end
-    if liveView then return time() - log.startTime, true end
+    if liveView then return base + (time() - segStart), true end
     return 0, false
 end
 
@@ -438,8 +446,13 @@ local function UpdateTimeLine()
     end
     local elapsed, running = GetRaidElapsed(log)
     local n = log.bosses and #log.bosses or 0
+    local zoneLabel = log.zone or "Raid"
+    local zoneCount = log.zones and #log.zones or 1
+    if zoneCount > 1 then
+        zoneLabel = zoneLabel .. " +" .. (zoneCount - 1)
+    end
     local line = string.format("|cff666672%s|r  |cff47bef5%s|r",
-        log.zone or "Raid", FormatDuration(elapsed))
+        zoneLabel, FormatDuration(elapsed))
     if n > 0 then
         line = line .. string.format("  |cff666672-  %d boss%s down|r", n, n == 1 and "" or "es")
     elseif running then
@@ -470,7 +483,7 @@ local TBC_DUNGEONS = {
 
 -- First pull: any combat start inside a raid or TBC dungeon arms the
 -- timer (group required, so solo farming does not trigger it).
--- A pull in a different instance starts a fresh log (multi-run nights).
+-- Same-type chains continue the log; a type switch starts fresh.
 local function OnCombatStart()
     if not RDTConfig or isTestMode then return end
     if not (IsInRaid() or IsInGroup()) then return end
@@ -483,12 +496,36 @@ local function OnCombatStart()
     local zone = GetRealZoneText() or "Instance"
     local log = RDTConfig.raidLog
     if log and log.startTime and log.zone == zone then return end
+
+    -- Multi-instance chain (double raid night): the previous segment is
+    -- retroactively closed at its LAST boss kill, so travel time between
+    -- the instances is excluded; the clock resumes with this pull.
+    -- Only same-type chains continue (raid->raid, dungeon->dungeon).
+    if log and log.startTime and log.instType == instType then
+        local segStart = log.segStart or log.startTime
+        local last = log.bosses and log.bosses[#log.bosses]
+        local segTime = (last and last.t >= segStart) and (last.t - segStart) or 0
+        log.baseElapsed = (log.baseElapsed or 0) + segTime
+        log.segStart    = time()
+        log.zone        = zone
+        log.zones       = log.zones or {}
+        table.insert(log.zones, zone)
+        log.killed      = {}
+        UpdateTimeLine()
+        print("|cff00ff00[RDT]|r Timer continues: " .. zone
+            .. " (travel time excluded)")
+        return
+    end
+
     RDTConfig.raidLog = {
-        zone      = zone,
-        instType  = instType,
-        startTime = time(),
-        bosses    = {},
-        killed    = {},
+        zone        = zone,
+        zones       = { zone },
+        instType    = instType,
+        startTime   = time(),
+        segStart    = time(),
+        baseElapsed = 0,
+        bosses      = {},
+        killed      = {},
     }
     UpdateTimeLine()
     print("|cff00ff00[RDT]|r "
@@ -523,13 +560,21 @@ local function RecordBossKill(encounterID, encounterName, fightDur)
         end
         return
     end
-    local entry = { name = name, t = time(), dur = fightDur }
+    -- e = active elapsed at kill time (paused travel segments excluded)
+    local now = time()
+    local entry = {
+        name = name,
+        t    = now,
+        e    = (log.baseElapsed or 0) + (now - (log.segStart or log.startTime)),
+        dur  = fightDur,
+        zone = log.zone,
+    }
     log.killed[nameKey] = entry
     if idKey then log.killed[idKey] = entry end
     table.insert(log.bosses, entry)
     UpdateTimeLine()
     local msg = string.format("|cff00ff00[RDT]|r Boss down: %s  +%s",
-        name, FormatDuration(entry.t - log.startTime))
+        name, FormatDuration(entry.e))
     if fightDur then
         msg = msg .. string.format("  (fight %s)", FormatDuration(fightDur))
     end
@@ -686,16 +731,29 @@ local function PrintRaidTime(chatType, chatLabel, whisperTarget)
     local elapsed, running = GetRaidElapsed(log)
     local bosses = log.bosses or {}
     local kind = (log.instType == "party") and "Dungeon time" or "Raid time"
+    local multiZone = log.zones and #log.zones > 1
+    local zoneText = multiZone and table.concat(log.zones, " + ") or (log.zone or "Raid")
     local header = string.format("%s - %s: %s%s",
-        log.zone or "Raid", kind, FormatDuration(elapsed), running and " (running)" or "")
+        zoneText, kind, FormatDuration(elapsed), running and " (running)" or "")
+
+    -- Per-boss elapsed: b.e = active time at kill (new format),
+    -- fallback for pre-chain logs is wall time since first pull.
+    local function BossElapsed(b)
+        return b.e or (b.t - log.startTime)
+    end
 
     if chatType then
         -- Post to chat: no color escapes allowed in SendChatMessage.
         -- whisperTarget is only set (and only used) for chatType WHISPER.
         SendChatMessage("( --< Raid Death Tracker - " .. header .. " >-- )",
             chatType, nil, whisperTarget)
+        local lastZone
         for i, b in ipairs(bosses) do
-            local line = string.format("#%d  %s  +%s", i, b.name, FormatDuration(b.t - log.startTime))
+            if multiZone and b.zone and b.zone ~= lastZone then
+                SendChatMessage("-- " .. b.zone .. " --", chatType, nil, whisperTarget)
+                lastZone = b.zone
+            end
+            local line = string.format("#%d  %s  +%s", i, b.name, FormatDuration(BossElapsed(b)))
             if b.dur then line = line .. string.format("  (fight %s)", FormatDuration(b.dur)) end
             SendChatMessage(line, chatType, nil, whisperTarget)
         end
@@ -707,9 +765,14 @@ local function PrintRaidTime(chatType, chatLabel, whisperTarget)
     if #bosses == 0 then
         print("  |cff666672No boss kills yet.|r")
     end
+    local lastZone
     for i, b in ipairs(bosses) do
+        if multiZone and b.zone and b.zone ~= lastZone then
+            print("  |cff666672-- " .. b.zone .. " --|r")
+            lastZone = b.zone
+        end
         local line = string.format("  %d. |cffd1d6e1%s|r  |cff47bef5+%s|r",
-            i, b.name, FormatDuration(b.t - log.startTime))
+            i, b.name, FormatDuration(BossElapsed(b)))
         if b.dur then
             line = line .. string.format("  |cff666672(fight %s)|r", FormatDuration(b.dur))
         end
@@ -941,6 +1004,9 @@ local function SaveSession()
     local hasRaidLog = rl and rl.startTime
     if not hasDeaths and not hasRaidLog then return end
     local zone = (hasRaidLog and rl.zone) or GetRealZoneText() or "Unknown"
+    if hasRaidLog and rl.zones and #rl.zones > 1 then
+        zone = table.concat(rl.zones, " + ")
+    end
     local date = date("%d.%m")
     local name = zone .. " " .. date
     local data, classes = {}, {}
@@ -949,14 +1015,21 @@ local function SaveSession()
     local raidLog
     if hasRaidLog then
         raidLog = {
-            zone      = rl.zone,
-            instType  = rl.instType,
-            startTime = rl.startTime,
-            endTime   = time(),
-            bosses    = {},
+            zone        = rl.zone,
+            instType    = rl.instType,
+            startTime   = rl.startTime,
+            segStart    = rl.segStart,
+            baseElapsed = rl.baseElapsed,
+            endTime     = time(),
+            bosses      = {},
         }
+        if rl.zones then
+            raidLog.zones = {}
+            for _, z in ipairs(rl.zones) do table.insert(raidLog.zones, z) end
+        end
         for _, b in ipairs(rl.bosses or {}) do
-            table.insert(raidLog.bosses, { name = b.name, t = b.t, dur = b.dur })
+            table.insert(raidLog.bosses,
+                { name = b.name, t = b.t, e = b.e, dur = b.dur, zone = b.zone })
         end
     end
     table.insert(RDTSessions, 1, { name = name, data = data, classes = classes, raidLog = raidLog })
@@ -1053,6 +1126,13 @@ frame:SetScript("OnEvent", function(self, event, ...)
                 RDTConfig.raidLog = (type(RDTRaidLog) == "table" and RDTRaidLog) or {}
             end
             RDTRaidLog = nil
+            -- Migration: pre-chain logs lack the segment fields
+            local rlog = RDTConfig.raidLog
+            if rlog.startTime and not rlog.segStart then
+                rlog.segStart    = rlog.startTime
+                rlog.baseElapsed = 0
+                rlog.zones       = { rlog.zone }
+            end
             -- Migration: old minimapAngle field -> minimapPos (LibDBIcon format)
             if not RDTConfig.minimapPos then
                 RDTConfig.minimapPos = RDTConfig.minimapAngle or 220
@@ -1162,15 +1242,22 @@ local function ActivateTestMode()
     for _, name in ipairs(TEST_NAMES) do
         RaidDeathData[name] = math.random(1, 15)
     end
+    -- Dummy double-raid chain: Karazhan (closed segment) + Gruul's Lair
+    local now = time()
     testRaidLog = {
-        zone      = "Karazhan",
-        startTime = time() - 5400,
+        zone        = "Gruul's Lair",
+        zones       = { "Karazhan", "Gruul's Lair" },
+        instType    = "raid",
+        startTime   = now - 7200,
+        segStart    = now - 1500,
+        baseElapsed = 4800,
         bosses = {
-            { name = "Attumen the Huntsman", t = time() - 4980, dur = 155 },
-            { name = "Moroes",               t = time() - 4260, dur = 233 },
-            { name = "Maiden of Virtue",     t = time() - 3660, dur = 187 },
-            { name = "The Curator",          t = time() - 2400, dur = 312 },
-            { name = "Prince Malchezaar",    t = time() - 600,  dur = 428 },
+            { name = "Attumen the Huntsman",   t = now - 6780, e = 420,  dur = 155, zone = "Karazhan" },
+            { name = "Moroes",                 t = now - 6060, e = 1140, dur = 233, zone = "Karazhan" },
+            { name = "The Curator",            t = now - 4200, e = 3000, dur = 312, zone = "Karazhan" },
+            { name = "Prince Malchezaar",      t = now - 2400, e = 4800, dur = 428, zone = "Karazhan" },
+            { name = "High King Maulgar",      t = now - 900,  e = 5400, dur = 258, zone = "Gruul's Lair" },
+            { name = "Gruul the Dragonkiller", t = now - 300,  e = 6000, dur = 331, zone = "Gruul's Lair" },
         },
     }
     print("|cff00ff00[RDT]|r Test: " .. #TEST_NAMES .. " entries created.")
