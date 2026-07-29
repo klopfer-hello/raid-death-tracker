@@ -427,7 +427,10 @@ local function GetRaidElapsed(log)
     local base     = log.baseElapsed or 0
     local bosses   = log.bosses
     local last     = bosses and bosses[#bosses]
-    if inThatRaid then return base + (time() - segStart), true end
+    -- End boss down: clock is stopped even while still inside
+    if inThatRaid and not log.finalDown then
+        return base + (time() - segStart), true
+    end
     if last then
         local segTime = (last.t >= segStart) and (last.t - segStart) or 0
         return base + segTime, false
@@ -457,6 +460,9 @@ local function UpdateTimeLine()
         line = line .. string.format("  |cff666672-  %d boss%s down|r", n, n == 1 and "" or "es")
     elseif running then
         line = line .. "  |cff666672-  in progress|r"
+    end
+    if log.finalDown then
+        line = line .. "  |cff33bb55done|r"
     end
     timeText:SetText(line)
     SetContentTop(50)
@@ -511,6 +517,7 @@ local function OnCombatStart()
         log.zones       = log.zones or {}
         table.insert(log.zones, zone)
         log.killed      = {}
+        log.finalDown   = nil
         UpdateTimeLine()
         print("|cff00ff00[RDT]|r Timer continues: " .. zone
             .. " (travel time excluded)")
@@ -532,6 +539,38 @@ local function OnCombatStart()
         .. (instType == "party" and "Dungeon" or "Raid")
         .. " timer started: " .. zone)
 end
+
+-- End bosses per instance: killing one stops the clock on the spot
+-- (a later optional kill in the same zone, e.g. Netherspite after
+-- Prince in Karazhan, extends the frozen time to that kill).
+local FINAL_BOSSES = {
+    -- Raids
+    ["Prince Malchezaar"]         = true,  -- Karazhan
+    ["Gruul the Dragonkiller"]    = true,
+    ["Magtheridon"]               = true,
+    ["Lady Vashj"]                = true,  -- SSC
+    ["Kael'thas Sunstrider"]      = true,  -- The Eye + Magisters' Terrace
+    ["Archimonde"]                = true,  -- Mount Hyjal
+    ["Illidan Stormrage"]         = true,  -- Black Temple
+    ["Zul'jin"]                   = true,  -- Zul'Aman
+    ["Kil'jaeden"]                = true,  -- Sunwell Plateau
+    -- TBC dungeons
+    ["Vazruden the Herald"]       = true,
+    ["Keli'dan the Breaker"]      = true,
+    ["Warchief Kargath Bladefist"] = true,
+    ["Quagmirran"]                = true,
+    ["The Black Stalker"]         = true,
+    ["Warlord Kalithresh"]        = true,
+    ["Nexus-Prince Shaffar"]      = true,
+    ["Exarch Maladaar"]           = true,
+    ["Talon King Ikiss"]          = true,
+    ["Murmur"]                    = true,
+    ["Epoch Hunter"]              = true,
+    ["Aeonus"]                    = true,
+    ["Pathaleon the Calculator"]  = true,
+    ["Warp Splinter"]             = true,
+    ["Harbinger Skyriss"]         = true,
+}
 
 -- A kill can be reported up to three times (ENCOUNTER_END, BOSS_KILL,
 -- combat-log fallback) — dedupe via encounter id AND boss name; a
@@ -572,6 +611,7 @@ local function RecordBossKill(encounterID, encounterName, fightDur)
     log.killed[nameKey] = entry
     if idKey then log.killed[idKey] = entry end
     table.insert(log.bosses, entry)
+    if FINAL_BOSSES[name] then log.finalDown = true end
     UpdateTimeLine()
     local msg = string.format("|cff00ff00[RDT]|r Boss down: %s  +%s",
         name, FormatDuration(entry.e))
@@ -579,6 +619,11 @@ local function RecordBossKill(encounterID, encounterName, fightDur)
         msg = msg .. string.format("  (fight %s)", FormatDuration(fightDur))
     end
     print(msg)
+    if FINAL_BOSSES[name] then
+        print("|cff00ff00[RDT]|r " .. (log.zone or "Instance") .. " complete - "
+            .. ((log.instType == "party") and "Dungeon" or "Raid")
+            .. " time: " .. FormatDuration(entry.e))
+    end
 end
 
 -- Combat-log fallback: on classic clients some encounters (e.g.
@@ -1020,6 +1065,7 @@ local function SaveSession()
             startTime   = rl.startTime,
             segStart    = rl.segStart,
             baseElapsed = rl.baseElapsed,
+            finalDown   = rl.finalDown,
             endTime     = time(),
             bosses      = {},
         }
@@ -1251,6 +1297,7 @@ local function ActivateTestMode()
         startTime   = now - 7200,
         segStart    = now - 1500,
         baseElapsed = 4800,
+        finalDown   = true,
         bosses = {
             { name = "Attumen the Huntsman",   t = now - 6780, e = 420,  dur = 155, zone = "Karazhan" },
             { name = "Moroes",                 t = now - 6060, e = 1140, dur = 233, zone = "Karazhan" },

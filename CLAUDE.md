@@ -61,7 +61,7 @@ A release consists of the following steps — always in this order:
 - `RDTConfig` — table: `{ minimapPos = <angle>, width, height }`
 - `RDTClassCache` — table: `{ [playerName] = classId }`
 - `RDTSessions` — array (max 5): `{ name, data, classes, raidLog }`
-- `RDTConfig.raidLog` — table: `{ zone, zones = {..}, instType ("raid"|"party"), startTime, segStart, baseElapsed, bosses = { {name, t, e, dur, zone} }, killed = { [key] = entry } }` (epoch times via `time()`; `e` = active elapsed at kill, `baseElapsed`/`segStart` implement the pause between chained instances). Lives inside `RDTConfig` on purpose: adding a NEW SavedVariable to the TOC needs a full client restart, existing ones persist with a plain `/reload`.
+- `RDTConfig.raidLog` — table: `{ zone, zones = {..}, instType ("raid"|"party"), startTime, segStart, baseElapsed, finalDown, bosses = { {name, t, e, dur, zone} }, killed = { [key] = entry } }` (epoch times via `time()`; `e` = active elapsed at kill, `baseElapsed`/`segStart` implement the pause between chained instances). Lives inside `RDTConfig` on purpose: adding a NEW SavedVariable to the TOC needs a full client restart, existing ones persist with a plain `/reload`.
 
 ## Commit Requirements
 
