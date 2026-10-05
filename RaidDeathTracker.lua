@@ -7,6 +7,7 @@
 local ADDON_NAME = "RaidDeathTracker"
 local TOP_N      = 5
 local viewIndex  = 0   -- 0 = live, 1..N = Session
+local lastDeathTime, pendingDeaths = {}, {}
 
 -- ----------------------------------------------------------------
 -- Core Frame (Events)
@@ -190,6 +191,7 @@ resetBtn:SetPoint("BOTTOMLEFT", 8, 6)
 resetBtn:SetScript("OnClick", function()
     RaidDeathData = {}
     RDTClassCache = {}
+    lastDeathTime, pendingDeaths = {}, {}
     frame:UpdateDisplay()
     print("|cff00ff00[RDT]|r Deaths reset.")
 end)
@@ -335,12 +337,14 @@ end
 -- ----------------------------------------------------------------
 local isTestMode  = false
 local testRaidLog = nil   -- dummy raid log while in test mode
+local testDeathData = nil
 
 local function GetViewData()
     if viewIndex > 0 and RDTSessions and RDTSessions[viewIndex] then
         local s = RDTSessions[viewIndex]
         return s.data, s.classes or {}
     end
+    if isTestMode then return testDeathData or {}, {} end
     return RaidDeathData, RDTClassCache
 end
 
@@ -491,17 +495,22 @@ local TBC_DUNGEONS = {
 -- timer (group required, so solo farming does not trigger it).
 -- Same-type chains continue the log; a type switch starts fresh.
 local function OnCombatStart()
-    if not RDTConfig or isTestMode then return end
+    if not RDTConfig then return end
     if not (IsInRaid() or IsInGroup()) then return end
     local _, instType = IsInInstance()
     if instType ~= "raid" and instType ~= "party" then return end
+    local normalDungeon = false
     if instType == "party" then
-        local mapID = select(8, GetInstanceInfo())
+        local _, _, difficulty, _, _, _, _, mapID = GetInstanceInfo()
         if not TBC_DUNGEONS[mapID or 0] then return end
+        normalDungeon = difficulty == 1
     end
     local zone = GetRealZoneText() or "Instance"
     local log = RDTConfig.raidLog
-    if log and log.startTime and log.zone == zone then return end
+    -- A finished normal dungeon can be run again without disbanding. Require
+    -- leaving it first, so reloads and later pulls inside the same run keep it.
+    local repeatDungeon = normalDungeon and log and log.finalDown and log.leftCompletedDungeon
+    if log and log.startTime and log.zone == zone and not repeatDungeon then return end
 
     -- Multi-instance chain (double raid night): the previous segment is
     -- retroactively closed at its LAST boss kill, so travel time between
@@ -518,6 +527,7 @@ local function OnCombatStart()
         table.insert(log.zones, zone)
         log.killed      = {}
         log.finalDown   = nil
+        log.leftCompletedDungeon = nil
         UpdateTimeLine()
         print("|cff00ff00[RDT]|r Timer continues: " .. zone
             .. " (travel time excluded)")
@@ -631,7 +641,7 @@ end
 -- combat-log fallback) — dedupe via encounter id AND boss name; a
 -- later event may backfill the fight duration.
 local function RecordBossKill(encounterID, encounterName, fightDur)
-    if not RDTConfig or isTestMode then return end
+    if not RDTConfig then return end
     local _, instType = IsInInstance()
     if instType ~= "raid" and instType ~= "party" then return end
     local log = RDTConfig.raidLog
@@ -1094,9 +1104,8 @@ local wasInGroup = false
 
 -- Only update visibility, no reset (e.g. after /reload)
 local function UpdateGroupVisibility()
-    if testBadge:IsShown() then return end
     local inGroup = IsInRaid() or IsInGroup()
-    if inGroup then display:Show() else display:Hide() end
+    if inGroup or isTestMode then display:Show() else display:Hide() end
     wasInGroup = inGroup
 end
 
@@ -1146,9 +1155,9 @@ end
 
 -- Reset + show only on actual group join
 local function OnGroupRosterUpdate()
-    if testBadge:IsShown() then return end
     local inGroup = IsInRaid() or IsInGroup()
     if inGroup and not wasInGroup then
+        lastDeathTime, pendingDeaths = {}, {}
         RaidDeathData = {}
         RDTClassCache = {}
         if RDTConfig then RDTConfig.raidLog = {} end
@@ -1157,11 +1166,12 @@ local function OnGroupRosterUpdate()
         print("|cff00ff00[RDT]|r Joined group — data reset.")
     elseif not inGroup and wasInGroup then
         SaveSession()
+        lastDeathTime, pendingDeaths = {}, {}
         viewIndex = 0
         UpdateNavUI()
-        display:Hide()
+        if not isTestMode then display:Hide() end
     elseif not inGroup then
-        display:Hide()
+        if not isTestMode then display:Hide() end
     end
     wasInGroup = inGroup
 end
@@ -1171,40 +1181,44 @@ end
 -- (initial death + 15s ghost form expiry) — suppress the second.
 -- ----------------------------------------------------------------
 local DEATH_DEBOUNCE = 20
-local lastDeathTime = {}
 
 -- ----------------------------------------------------------------
 -- Feign Death detection: confirm death after 3s delay
 -- ----------------------------------------------------------------
 local FEIGN_DEATH_DELAY = 3
-local pendingDeaths = {}  -- { [name] = { time = t, token = "raid1"|"party1"|"player" } }
+-- Pending hunter checks are keyed by GUID, not a reusable raid unit token.
 
 -- Currently running boss encounter (for fight duration)
 local currentEncounter = nil  -- { id = encounterID, startT = GetTime() }
 
 local deathCheckFrame = CreateFrame("Frame")
 
-local function FindUnitToken(name)
-    if UnitName("player") == name then return "player" end
+local function FindUnitToken(name, guid)
+    local function matches(token)
+        if guid then return UnitGUID(token) == guid end
+        return UnitName(token) == name
+    end
+    if matches("player") then return "player" end
     for i = 1, 40 do
         local token = "raid"..i
         if not UnitExists(token) then break end
-        if UnitName(token) == name then return token end
+        if matches(token) then return token end
     end
     for i = 1, 4 do
         local token = "party"..i
         if not UnitExists(token) then break end
-        if UnitName(token) == name then return token end
+        if matches(token) then return token end
     end
 end
 
 local function OnDeathCheck(self)
     local now = GetTime()
-    for name, entry in pairs(pendingDeaths) do
+    for guid, entry in pairs(pendingDeaths) do
         if now - entry.time >= FEIGN_DEATH_DELAY then
-            pendingDeaths[name] = nil
-            if UnitIsDead(entry.token) then
-                RaidDeathData[name] = (RaidDeathData[name] or 0) + 1
+            pendingDeaths[guid] = nil
+            local token = FindUnitToken(entry.name, guid)
+            if token and UnitIsDeadOrGhost(token) then
+                RaidDeathData[entry.name] = (RaidDeathData[entry.name] or 0) + 1
                 frame:UpdateDisplay()
             end
             -- otherwise: Feign Death — don't count
@@ -1258,6 +1272,13 @@ frame:SetScript("OnEvent", function(self, event, ...)
         end
 
     elseif event == "PLAYER_ENTERING_WORLD" then
+        local log = RDTConfig and RDTConfig.raidLog
+        if log and log.instType == "party" and log.finalDown then
+            local _, instType = IsInInstance()
+            if instType ~= "party" or GetRealZoneText() ~= log.zone then
+                log.leftCompletedDungeon = true
+            end
+        end
         UpdateGroupVisibility()
 
     elseif event == "PLAYER_REGEN_DISABLED" then
@@ -1292,6 +1313,16 @@ frame:SetScript("OnEvent", function(self, event, ...)
         local _, subEvent, _, _, _, _, _, destGUID, destName =
             CombatLogGetCurrentEventInfo()
 
+        if subEvent == "SPELL_RESURRECT" and destGUID then
+            lastDeathTime[destGUID] = nil
+            local pending = pendingDeaths[destGUID]
+            if pending then
+                pendingDeaths[destGUID] = nil
+                RaidDeathData[pending.name] = (RaidDeathData[pending.name] or 0) + 1
+                frame:UpdateDisplay()
+            end
+            return
+        end
         if subEvent ~= "UNIT_DIED" or not destGUID then return end
 
         -- Boss kill fallback via NPC id from the creature GUID
@@ -1309,21 +1340,22 @@ frame:SetScript("OnEvent", function(self, event, ...)
             and (IsInRaid() or IsInGroup())
         then
             -- Only count own party/raid members
-            local token = FindUnitToken(destName)
+            local token = FindUnitToken(destName, destGUID)
             if token then
                 local _, classId = UnitClass(token)
                 if classId then RDTClassCache[destName] = classId end
                 if classId == "HUNTER" then
                     -- Feign Death possible: confirm after 3s delay
-                    pendingDeaths[destName] = { time = GetTime(), token = token }
+                    pendingDeaths[destGUID] = { time = GetTime(), name = destName }
                     deathCheckFrame:SetScript("OnUpdate", OnDeathCheck)
                 else
                     -- Suppress duplicate UNIT_DIED (Priest Spirit of Redemption fires twice).
                     local now = GetTime()
-                    if lastDeathTime[destName] and now - lastDeathTime[destName] < DEATH_DEBOUNCE then
+                    if classId == "PRIEST" and lastDeathTime[destGUID]
+                        and now - lastDeathTime[destGUID] < DEATH_DEBOUNCE then
                         return
                     end
-                    lastDeathTime[destName] = now
+                    lastDeathTime[destGUID] = now
                     RaidDeathData[destName] = (RaidDeathData[destName] or 0) + 1
                     frame:UpdateDisplay()
                 end
@@ -1343,9 +1375,9 @@ local TEST_NAMES = {
 local function ActivateTestMode()
     isTestMode = true
     viewIndex  = 0
-    RaidDeathData = {}
+    testDeathData = {}
     for _, name in ipairs(TEST_NAMES) do
-        RaidDeathData[name] = math.random(1, 15)
+        testDeathData[name] = math.random(1, 15)
     end
     -- Dummy double-raid chain: Karazhan (closed segment) + Gruul's Lair
     local now = time()
@@ -1375,10 +1407,11 @@ end
 local function DeactivateTestMode()
     isTestMode = false
     viewIndex  = 0
-    RaidDeathData = {}
+    testDeathData = nil
     testRaidLog   = nil
     frame:UpdateDisplay()
     UpdateNavUI()
+    UpdateGroupVisibility()
     print("|cff00ff00[RDT]|r Test mode ended.")
 end
 
@@ -1395,6 +1428,7 @@ SlashCmdList["RAIDDEATHTRACKER"] = function(msg)
     elseif msg == "reset"      then
         RaidDeathData = {}
         RDTClassCache = {}
+        lastDeathTime, pendingDeaths = {}, {}
         frame:UpdateDisplay()
         print("|cff00ff00[RDT]|r Deaths reset.")
     elseif msg:sub(1, 4) == "post" then
